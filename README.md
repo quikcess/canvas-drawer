@@ -1,11 +1,10 @@
-
 <div align="center">
-  <img alt="CanvasDrawer Banner" src="https://example.com/path/to/banner.png">
+  <img alt="CanvasDrawer Banner" src="https://i.ibb.co/vxCbchW/Quikcess-Banner1-github.png">
 </div>
 
 <h1 align="center">CanvasDrawer</h1>
 
-<p align="center">Library for drawing shapes on a canvas using Node.js, Discord.js and Napi Canvas.</p>
+<p align="center">Library for drawing shapes on a canvas using Node.js, Discord.js, and Napi Canvas.</p>
 
 <div align="center">
   <div style="width: fit-content; display: flex; align-items: flex-start; gap: 4px;">
@@ -21,15 +20,16 @@
 
 ```bash
 npm install canvas-drawer
-// or
+# or
 yarn add canvas-drawer
-// or
+# or
 pnpm add canvas-drawer
 ```
 
+<!-- 
 ## Documentation
 
-Visit our [official API documentation](https://docs.yourproject.com) for more information about this library.
+Visit our [official API documentation](https://docs.yourproject.com) for more information about this library. -->
 
 ## Getting Started
 
@@ -53,7 +53,7 @@ canvas.drawCircle({
   y: 300,
   radius: 50,
   backgroundColor: 'red',
-  borderWidth: '2px',
+  borderWidth: 2,
   borderColor: 'black'
 });
 
@@ -68,6 +68,16 @@ Draws a rectangle on the canvas.
 
 - **Parameters:**
   - `options`: Object with rectangle options.
+    - `x`: Horizontal position of the rectangle.
+    - `y`: Vertical position of the rectangle.
+    - `width`: Width of the rectangle.
+    - `height`: Height of the rectangle.
+    - `backgroundColor`: Background color of the rectangle.
+    - `backgroundImage`: Background image of the rectangle.
+    - `borderColor`: Border color of the rectangle.
+    - `borderWidth`: Border width of the rectangle.
+    - `borderRadius`: Corner radius of the rectangle.
+    - `reference`: Reference for positioning the rectangle relative to another element.
 
 - **Returns:** Object with dimensions of the drawn rectangle.
 
@@ -77,41 +87,79 @@ Draws a circle on the canvas.
 
 - **Parameters:**
   - `options`: Object with circle options.
+    - `x`: Horizontal position of the circle.
+    - `y`: Vertical position of the circle.
+    - `radius`: Radius of the circle.
+    - `backgroundColor`: Background color of the circle.
+    - `backgroundImage`: Background image of the circle.
+    - `borderColor`: Border color of the circle.
+    - `borderWidth`: Border width of the circle.
+    - `reference`: Reference for positioning the circle relative to another element.
 
 - **Returns:** Object with dimensions of the drawn circle.
 
-## Advanced Usage
+#### `drawLine(options)`
+
+Draws a line on the canvas.
+
+- **Parameters:**
+  - `options`: Object with line options.
+    - `startX`: Starting horizontal position of the line.
+    - `startY`: Starting vertical position of the line.
+    - `endX`: Ending horizontal position of the line.
+    - `endY`: Ending vertical position of the line.
+    - `lineWidth`: Width of the line.
+    - `lineColor`: Color of the line.
+    - `lineCap`: Style of the line's end caps (e.g., 'butt', 'round', 'square').
+
+- **Returns:** Object with details of the drawn line.
+
+#### `drawTriangle(options)`
+
+Draws a triangle on the canvas.
+
+- **Parameters:**
+  - `options`: Object with triangle options.
+    - `x`: Horizontal position of the triangle.
+    - `y`: Vertical position of the triangle.
+    - `width`: Width of the triangle base.
+    - `height`: Height of the triangle.
+    - `backgroundColor`: Background color of the triangle.
+    - `backgroundImage`: Background image of the triangle.
+    - `borderColor`: Border color of the triangle.
+    - `borderWidth`: Border width of the triangle.
+    - `reference`: Reference for positioning the triangle relative to another element.
+
+- **Returns:** Object with dimensions of the drawn triangle.
+
+### Advanced Usage
 
 ### Working with Attachments in Discord
 
-#### `generateAttachment(fileName, [mimeType])`
+#### `generateAttachment(fileName, options)`
 
 Generates a Discord attachment from the canvas.
 
 - **Parameters:**
   - `fileName`: Name of the attachment file.
-  - `mimeType` (optional): MIME type of the attachment (default is "image/jpeg").
+  - `options`: Object with options.
+    - `mimeType`: MIME type of the attachment (default is "image/jpeg").
+    - `quality`: Quality of the image (0 to 100, default is 100).
 
 - **Returns:** Promise resolving to an `AttachmentBuilder` object.
 
 ### Working with Buffer
 
-#### `getBuffer()`
+#### `getBuffer(mimeType = "image/jpeg", quality = 100)`
 
-Returns the current canvas image buffer as an image buffer.
+Returns the current canvas image as a buffer.
 
-- **Usage:**
-  ```js
-  const { CanvasDrawer } = require('canvas-drawer');
-
-  const canvas = new CanvasDrawer(800, 600);
-
-  const buffer = CanvasDrawer.getBuffer(); // Use buffer as needed
-  ```
+- **Parameters:**
+  - `mimeType`: MIME type of the buffer (default is "image/jpeg").
+  - `quality`: Quality of the image (0 to 100, default is 100).
 
 - **Returns:**
   - A buffer containing the image rendered on the canvas.
-
 
 ### Customizing Drawings
 
@@ -121,6 +169,18 @@ Sets a custom 2D context for the canvas.
 
 - **Parameters:**
   - `ctx`: New 2D context to be set.
+
+## Cache Management
+
+#### `clearCache(options)`
+
+Clears the cache based on the provided options.
+
+- **Parameters:**
+  - `options`: Options to specify which parts of the cache to clear.
+    - `images`: Whether to clear the image cache (default: true).
+    - `elements`: Whether to clear the elements cache (default: true).
+    - `attachments`: Whether to clear the attachments cache (default: true).
 
 ## Contributing
 

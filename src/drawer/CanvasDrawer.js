@@ -1,8 +1,13 @@
 const { AttachmentBuilder } = require('discord.js');
 const { createCanvas } = require('@napi-rs/canvas');
+const crypto = require('crypto');
 
 const RectDrawer = require('./RectDrawer');
 const CircleDrawer = require('./CircleDrawer');
+const LineDrawer = require('./LineDrawer');
+const TriangleDrawer = require('./TriangleDrawer');
+
+const { cache, clearCache } = require("./CacheManager");
 
 class CanvasDrawer {
   constructor(width, height) {
@@ -10,37 +15,142 @@ class CanvasDrawer {
     this.ctx = this.canvas.getContext('2d');
     this.rectDrawer = new RectDrawer(this.ctx);
     this.circleDrawer = new CircleDrawer(this.ctx);
+    this.lineDrawer = new LineDrawer(this.ctx);
+    this.triangleDrawer = new TriangleDrawer(this.ctx);
     this.lastReference = null;
   }
 
-  drawRect(options = {}) {
-    this.lastReference = this.rectDrawer.drawRect(options, this.lastReference);
+  /**
+   * Draws a rectangle on the canvas.
+   * @param {Object} options - Options for drawing the rectangle.
+   * @param {number} options.x - X-coordinate of the rectangle's top-left corner.
+   * @param {number} options.y - Y-coordinate of the rectangle's top-left corner.
+   * @param {number} options.width - Width of the rectangle.
+   * @param {number} options.height - Height of the rectangle.
+   * @param {Object} options.reference - Reference object for positioning.
+   * @param {string} options.backgroundColor - Background color of the rectangle.
+   * @param {string} options.backgroundImage - URL or path to the background image of the rectangle.
+   * @param {string} options.borderColor - Color of the rectangle's border.
+   * @param {string} options.borderWidth - Width of the rectangle's border.
+   * @param {string} options.borderStyle - Style of the rectangle's border ('dashed', 'dotted', etc.).
+   * @param {number} options.borderRadius - Radius of the rectangle's corners.
+   * @returns {Promise<Object>} Object with dimensions of the drawn rectangle { x, y, width, height }.
+   */
+  async drawRect(options = {}) {
+    this.lastReference = await this.rectDrawer.drawRect(options, this.lastReference);
+    return this.lastReference;
   }
 
-  drawCircle(options = {}) {
-    this.lastReference = this.circleDrawer.drawCircle(options, this.lastReference);
+  /**
+   * Draws a circle on the canvas.
+   * @param {Object} options - Options for drawing the circle.
+   * @param {number} options.x - X-coordinate of the circle's center.
+   * @param {number} options.y - Y-coordinate of the circle's center.
+   * @param {number} options.radius - Radius of the circle.
+   * @param {Object} options.reference - Reference object for positioning.
+   * @param {string} options.backgroundColor - Background color of the circle.
+   * @param {string} options.backgroundImage - URL or path to the background image of the circle.
+   * @param {string} options.borderColor - Color of the circle's border.
+   * @param {string} options.borderWidth - Width of the circle's border.
+   * @returns {Promise<Object>} Object with dimensions of the drawn circle { x, y, width, height }.
+   */
+  async drawCircle(options = {}) {
+    this.lastReference = await this.circleDrawer.drawCircle(options, this.lastReference);
+    return this.lastReference;
   }
 
+  /**
+   * Draws a line on the canvas.
+   * @param {Object} options - Options for drawing the line.
+   * @param {number} options.startX - Starting horizontal position of the line.
+   * @param {number} options.startY - Starting vertical position of the line.
+   * @param {number} options.endX - Ending horizontal position of the line.
+   * @param {number} options.endY - Ending vertical position of the line.
+   * @param {number} [options.lineWidth=1] - Width of the line.
+   * @param {string} [options.lineColor='black'] - Color of the line.
+   * @param {string} [options.lineCap='butt'] - Style of the line's end caps ('butt', 'round', 'square').
+   * @returns {Object} Object containing the line's details.
+   */
+  async drawLine(options) {
+    const data = await this.lineDrawer.drawLine(options, this.lastReference);
+    return data;
+  }
+
+  /**
+   * Draws a triangle on the canvas.
+   * @param {Object} options - Options for drawing the triangle.
+   * @param {number} options.x - Horizontal position of the triangle.
+   * @param {number} options.y - Vertical position of the triangle.
+   * @param {number} options.width - Width of the triangle base.
+   * @param {number} options.height - Height of the triangle.
+   * @param {string} [options.position='topLeft'] - Positioning reference ('topLeft', 'topRight', 'bottomLeft', 'bottomRight').
+   * @param {string} [options.backgroundColor='transparent'] - Background color of the triangle.
+   * @param {string} [options.borderColor] - Border color of the triangle.
+   * @param {number} [options.borderWidth] - Border width of the triangle.
+   * @returns {Object} Object containing the line's details.
+   */
+  async drawTriangle(options) {
+    const data = await this.triangleDrawer.drawTriangle(options, this.lastReference);
+    return data;
+  }
+  
+  /**
+   * Sets the canvas context for drawing operations.
+   * @param {CanvasRenderingContext2D} ctx - Canvas 2D rendering context.
+   */
   setContext(ctx) {
     this.ctx = ctx;
     this.canvas = ctx.canvas;
-  }
-
-  getContext() {
-    return this.ctx;
-  }
-
-  getBuffer(mimeType = "image/jpeg") {
-    const buffer = this.canvas.toBuffer(mimeType);
-    return buffer;
+    this.rectDrawer.setContext(ctx);
+    this.circleDrawer.setContext(ctx);
   }
   
-  async generateAttachment(fileName, mimeType = "image/jpeg") {
-    const buffer = this.canvas.toBuffer(mimeType);
+  /**
+   * Clears the cache based on the provided options.
+   * @param {Object} options - Options to specify which parts of the cache to clear.
+   * @param {boolean} options.images - Whether to clear the image cache (default: true).
+   * @param {boolean} options.elements - Whether to clear the elements cache (default: true).
+   * @param {boolean} options.attachments - Whether to clear the attachments cache (default: true).
+   */
+  clearCache(options = { images: true, elements: true, attachments: true }) {
+    clearCache(options);
+  }
+
+  /**
+   * Retrieves or generates an attachment based on fileName and mimeType.
+   * @param {string} fileName - Name of the attachment file.
+   * @param {Object} options - Options for generating the attachment.
+   * @param {number} [options.quality] - Quality of the image (0 to 100, applicable for "image/jpeg" and "image/webp").
+   * @param {string} options.mimeType - MIME type of the attachment (default: "image/jpeg").
+   * @returns {Promise<AttachmentBuilder>} Attachment builder instance.
+   */
+  async generateAttachment(fileName, options = { quality: 100, mimeType: "image/jpeg" }) {
+    const { quality, mimeType } = options;
+
+    const buffer = this.canvas.toBuffer(mimeType, { quality });
+    const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+    const cacheKey = `${fileName}_${mimeType}_${hash}`;
+
+    if (cache.attachments[cacheKey]) {
+      return cache.attachments[cacheKey];
+    }
+
     const attachment = new AttachmentBuilder(buffer, { name: fileName });
+    cache.attachments[cacheKey] = attachment;
+
     return attachment;
   }
 
+  /**
+   * Retrieves or generates a buffer based on mimeType.
+   * @param {string} mimeType - MIME type of the buffer (default: "image/jpeg").
+   * @param {number} [quality] - Quality of the image (0 to 100, applicable for "image/jpeg" and "image/webp").
+   * @returns {Buffer} Buffer of the canvas.
+   */
+  getBuffer(mimeType="image/jpeg", quality=100) {
+    const buffer = this.canvas.toBuffer(mimeType, quality);
+    return buffer;
+  }
 }
 
 module.exports = CanvasDrawer;

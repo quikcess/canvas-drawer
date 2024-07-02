@@ -1,4 +1,6 @@
+const { createCanvas } = require("@napi-rs/canvas");
 const { calculatePosition, roundRect } = require("./CanvasHelper");
+const { getCachedImage, cache } = require("./CacheManager");
 
 class RectDrawer {
   constructor(ctx) {
@@ -6,48 +8,104 @@ class RectDrawer {
     this.canvas = ctx.canvas;
   }
 
-  drawRect(options = {}, lastReference=null) {
-    const { x, y, width, height, reference, borderRadius=0, ...rest } = options;
-    const { posX, posY, divWidth, divHeight } = calculatePosition(this, { x, y, width, height, reference, lastReference });
+  /**
+   * Draws a rectangle on the canvas with optional background image and border.
+   * @param {Object} options - Options for drawing the rectangle.
+   * @param {number} options.x - X-coordinate of the rectangle's top-left corner.
+   * @param {number} options.y - Y-coordinate of the rectangle's top-left corner.
+   * @param {number} options.width - Width of the rectangle.
+   * @param {number} options.height - Height of the rectangle.
+   * @param {Object} options.reference - Reference object for positioning.
+   * @param {string} options.backgroundColor - Background color of the rectangle.
+   * @param {string} options.backgroundImage - URL or path to the background image of the rectangle.
+   * @param {string} options.borderColor - Color of the rectangle's border.
+   * @param {string} options.borderWidth - Width of the rectangle's border.
+   * @param {string} options.borderStyle - Style of the rectangle's border ('dashed', 'dotted', etc.).
+   * @param {number} options.borderRadius - Radius of the rectangle's corners.
+   * @param {Object} lastReference - Last reference object for positioning.
+   * @returns {Promise<Object>} Object with dimensions of the drawn rectangle { x, y, width, height }.
+   */
+  async drawRect(options = {}, lastReference = null) {
+    const { x, y, width, height, reference, borderRadius = 0, backgroundColor, backgroundImage, borderColor, borderWidth, borderStyle } = options;
+    const { posX, posY, divWidth, divHeight } = calculatePosition({ ctx: this.ctx, x, y, width, height, reference, lastReference });
 
-    this.ctx.save();
-
-    if (rest.backgroundColor !== 'transparent') {
-      this.ctx.fillStyle = rest.backgroundColor;
-      roundRect(this, posX, posY, divWidth, divHeight, borderRadius);
-      this.ctx.fill();
+    const cacheKey = JSON.stringify({ x: posX, y: posY, width: divWidth, height: divHeight, borderRadius, backgroundColor, backgroundImage, borderColor, borderWidth, borderStyle });
+    if (cache.elements[cacheKey]) {
+      this.ctx.drawImage(cache.elements[cacheKey], posX, posY, divWidth, divHeight);
+      return { x: posX, y: posY, width: divWidth, height: divHeight };
     }
 
-    if (rest.borderColor && rest.borderWidth) {
-      this.ctx.strokeStyle = rest.borderColor;
-      const parsedBorderWidth = parseFloat(rest.borderWidth);
+    // Canvas off-screen para desenhar o elemento
+    const offScreenCanvas = createCanvas(divWidth, divHeight);
+    const offScreenCtx = offScreenCanvas.getContext('2d');
+
+    offScreenCtx.save();
+
+    // Draw background image if provided
+    if (backgroundImage) {
+      const image = await getCachedImage(backgroundImage);
+
+      // Create a clipping mask to ensure the image stays within the rounded rectangle
+      offScreenCtx.beginPath();
+      roundRect(offScreenCtx, 0, 0, divWidth, divHeight, borderRadius);
+      offScreenCtx.clip();
+      
+      // Calculate scale and position to center the image
+      const scale = Math.max(divWidth / image.width, divHeight / image.height);
+      const imageWidth = image.width * scale;
+      const imageHeight = image.height * scale;
+      const imageX = (divWidth - imageWidth) / 2;
+      const imageY = (divHeight - imageHeight) / 2;
+
+      // Draw the image
+      offScreenCtx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
+    }
+    
+    // Draw background color if provided and not transparent
+    if (backgroundColor && backgroundColor !== 'transparent') {
+      offScreenCtx.fillStyle = backgroundColor;
+      offScreenCtx.beginPath();
+      roundRect(offScreenCtx, 0, 0, divWidth, divHeight, borderRadius);
+      offScreenCtx.closePath();
+      offScreenCtx.fill();
+    }
+
+    // Draw rectangle border if borderColor and borderWidth are specified
+    if (borderColor && borderWidth) {
+      offScreenCtx.strokeStyle = borderColor;
+      const parsedBorderWidth = parseFloat(borderWidth);
 
       if (!isNaN(parsedBorderWidth)) {
-        this.ctx.lineWidth = parsedBorderWidth;
+        offScreenCtx.lineWidth = parsedBorderWidth;
       } else {
-        console.warn('Invalid borderWidth:', rest.borderWidth);
-        this.ctx.lineWidth = 1;
+        console.warn('Invalid borderWidth:', borderWidth);
+        offScreenCtx.lineWidth = 1;
       }
 
-      switch (rest.borderStyle) {
+      switch (borderStyle) {
         case 'dashed':
-          this.ctx.setLineDash([6, 4]);
+          offScreenCtx.setLineDash([6, 4]);
           break;
         case 'dotted':
-          this.ctx.setLineDash([2, 2]);
+          offScreenCtx.setLineDash([2, 2]);
           break;
         default:
-          this.ctx.setLineDash([]);
+          offScreenCtx.setLineDash([]);
           break;
       }
 
-      roundRect(this, posX, posY, divWidth, divHeight, borderRadius);
-      this.ctx.stroke();
+      offScreenCtx.beginPath();
+      roundRect(offScreenCtx, 0, 0, divWidth, divHeight, borderRadius);
+      offScreenCtx.closePath();
+      offScreenCtx.stroke();
     }
 
-    this.ctx.restore();
+    offScreenCtx.restore();
 
-    // Update lastReference to current rectangle dimensions
+    cache.elements[cacheKey] = offScreenCanvas;
+
+    this.ctx.drawImage(offScreenCanvas, posX, posY, divWidth, divHeight);
+
     return { x: posX, y: posY, width: divWidth, height: divHeight };
   }
 }
