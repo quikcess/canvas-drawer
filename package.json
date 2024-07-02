@@ -1,0 +1,14 @@
+{
+  "name": "canvas-drawer",
+  "version": "1.0.0",
+  "description": "Library for drawing shapes on a canvas using Node.js, Discord.js and Napi Canvas.",
+  "main": "src/index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "Eydrenn Araújo",
+  "license": "ISC",
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.53",
+    "discord.js": "^14.15.3"
+  }
+}
