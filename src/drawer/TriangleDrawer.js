@@ -1,8 +1,8 @@
-const { pxToNumber } = require("./CanvasHelper");
-const { cache, getCachedImage } = require("./CacheManager");
-const { createCanvas } = require("@napi-rs/canvas");
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
+const { cache } = require('./CacheManager');
+const { pxToNumber, pixelParser } = require('./CanvasHelper');
 
-class TrianguleDrawer {
+class TriangleDrawer {
   constructor(ctx) {
     this.ctx = ctx;
     this.canvas = ctx.canvas;
@@ -11,88 +11,147 @@ class TrianguleDrawer {
   /**
    * Draws a triangle on the canvas.
    * @param {Object} options - Options for drawing the triangle.
-   * @param {number} options.x - Horizontal position of the triangle.
-   * @param {number} options.y - Vertical position of the triangle.
-   * @param {number} options.width - Width of the triangle base.
-   * @param {number} options.height - Height of the triangle.
-   * @param {Object} [options.reference] - Reference object for positioning.
+   * @param {number|string} options.x - Horizontal position of the triangle (can be numeric or 'center').
+   * @param {number|string} options.y - Vertical position of the triangle (can be numeric or 'center').
+   * @param {number} options.size - Size of the triangle (base and height will be the same).
    * @param {string} [options.backgroundColor='transparent'] - Background color of the triangle.
-   * @param {string} options.backgroundImage - URL or path to the background image of the rectangle.
+   * @param {string} [options.backgroundImage] - URL or path to the background image of the triangle.
+   * @param {object|string|array} [options.backgroundGradient] - Background gradient of the triangle.
    * @param {string} [options.borderColor] - Border color of the triangle.
-   * @param {number} [options.borderWidth] - Border width of the triangle.
+   * @param {object|string|array} [options.borderGradient] - Color gradient of the triangle's border.
+   * @param {number} [options.borderWidth=0] - Border width of the triangle.
+   * @returns {Object} Object containing the triangle's details.
    */
-  async drawTriangle(options = {}) {
-    const { x, y, width, height, ...rest } = options;
-    const posX = pxToNumber(x);
-    const posY = pxToNumber(y);
-    const divWidth = pxToNumber(width);
-    const divHeight = pxToNumber(height);
+  async drawTriangle(options = {}, lastReference = null) {
+    const { x, y, size, backgroundColor = 'transparent', backgroundImage, backgroundGradient, borderColor, borderGradient, borderWidth = 0, reference } = pixelParser(options);
 
-    const cacheKey = JSON.stringify({ x: posX, y: posY, width: divWidth, height: divHeight, ...rest });
+    // Convert position values if 'center' or 'center' is provided
+    let posX = x === 'center' ? (this.canvas.width - size - borderWidth * 2) / 2 : x;
+    let posY = y === 'center' ? (this.canvas.height - size - borderWidth * 2) / 2 : y;
+
+    if (reference) {
+      let referenceNow=reference;
+      if (reference === 'auto' && lastReference) {
+        referenceNow=lastReference;
+      }
+      if (x === 'center') {
+        // posX = lastReference.width - size - borderWidth * 2;
+        posX = referenceNow.x + (referenceNow.width || 0) / 2 - size / 2 - borderWidth;
+      }
+
+      if (y === 'center') {
+        // posY = lastReference.height - size - borderWidth * 2;
+        posY = referenceNow.y + (referenceNow.height || 0) / 2 - size / 2 - borderWidth;
+      }
+    }
+
+    const cacheKey = JSON.stringify({ x: posX, y: posY, size, backgroundColor, backgroundImage, backgroundGradient, borderColor, borderGradient, borderWidth, shape: 'triangle' });
     if (cache.elements[cacheKey]) {
       this.ctx.drawImage(cache.elements[cacheKey], posX, posY); // Draw cached image directly
       return;
     }
 
     // Create off-screen canvas for drawing the triangle
-    const offScreenCanvas = createCanvas(divWidth, divHeight);
+    const offScreenCanvas = createCanvas(size + borderWidth * 2, size + borderWidth * 2); // Increase canvas size to accommodate border
     const offScreenCtx = offScreenCanvas.getContext('2d');
 
     offScreenCtx.save();
 
-    // Draw triangle background
-    if (rest.backgroundColor && rest.backgroundColor !== 'transparent') {
-      offScreenCtx.fillStyle = rest.backgroundColor;
-      offScreenCtx.beginPath();
-      offScreenCtx.moveTo(0, divHeight); // Move to the starting point
-      offScreenCtx.lineTo(divWidth / 2, 0); // Line to the top of the triangle
-      offScreenCtx.lineTo(divWidth, divHeight); // Line back to the starting point
-      offScreenCtx.closePath();
-      offScreenCtx.fill();
-    }
+    // Draw triangle background with gradient if provided
+    if (backgroundGradient) {
+      let gradientColors;
+      let gradientAngle = 0; // Default angle
 
-    // Draw background image if provided
-    if (rest.backgroundImage) {
-      const image = await getCachedImage(rest.backgroundImage);
-
-      // Create a clipping mask to ensure the image stays within the triangle
-      offScreenCtx.beginPath();
-      offScreenCtx.moveTo(0, divHeight);
-      offScreenCtx.lineTo(divWidth / 2, 0);
-      offScreenCtx.lineTo(divWidth, divHeight);
-      offScreenCtx.closePath();
-      offScreenCtx.clip();
-
-      // Calculate scale and position to center the image
-      const scale = Math.max(divWidth / image.width, divHeight / image.height);
-      const imageWidth = image.width * scale;
-      const imageHeight = image.height * scale;
-      const imageX = (divWidth - imageWidth) / 2;
-      const imageY = (divHeight - imageHeight) / 2;
-
-      // Draw the image
-      offScreenCtx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
-    }
-
-    // Draw triangle border
-    if (rest.borderColor && rest.borderWidth) {
-      offScreenCtx.strokeStyle = rest.borderColor;
-      const parsedBorderWidth = parseFloat(rest.borderWidth);
-
-      if (!isNaN(parsedBorderWidth)) {
-        offScreenCtx.lineWidth = parsedBorderWidth;
-      } else {
-        console.warn('Invalid borderWidth:', rest.borderWidth);
-        offScreenCtx.lineWidth = 1;
+      if (Array.isArray(backgroundGradient)) { // If backgroundGradient is an array of colors
+        gradientColors = backgroundGradient;
+      } else if (typeof backgroundGradient === 'string') { // If backgroundGradient is a string of colors separated by spaces
+        gradientColors = backgroundGradient.split(' ');
+      } else { // If backgroundGradient is an object with stops or colors
+        const { angle = 0, stops, colors } = backgroundGradient;
+        gradientAngle = angle;
+        if (stops) {
+          gradientColors = stops.map(stop => stop.color);
+        } else if (colors) {
+          gradientColors = Array.isArray(colors) ? colors : colors.split(' ');
+        }
       }
 
-      offScreenCtx.beginPath();
-      offScreenCtx.moveTo(0, divHeight);
-      offScreenCtx.lineTo(divWidth / 2, 0);
-      offScreenCtx.lineTo(divWidth, divHeight);
-      offScreenCtx.closePath();
-      offScreenCtx.stroke();
+      const radianAngle = (gradientAngle * Math.PI) / 180;
+      const x0 = (size + borderWidth * 2) / 2 + ((size + borderWidth * 2) / 2) * Math.cos(radianAngle - Math.PI / 2);
+      const y0 = (size + borderWidth * 2) / 2 + ((size + borderWidth * 2) / 2) * Math.sin(radianAngle - Math.PI / 2);
+      const x1 = (size + borderWidth * 2) / 2 + ((size + borderWidth * 2) / 2) * Math.cos(radianAngle + Math.PI / 2);
+      const y1 = (size + borderWidth * 2) / 2 + ((size + borderWidth * 2) / 2) * Math.sin(radianAngle + Math.PI / 2);
+
+      const gradient = offScreenCtx.createLinearGradient(x0, y0, x1, y1);
+
+      gradientColors.forEach((color, index) => {
+        const offset = index / (gradientColors.length - 1);
+        gradient.addColorStop(offset, color);
+      });
+
+      offScreenCtx.fillStyle = gradient;
+    } else {
+      offScreenCtx.fillStyle = backgroundColor;
     }
+
+    offScreenCtx.beginPath();
+    offScreenCtx.moveTo((size + borderWidth * 2) / 2, borderWidth); // Move to the top vertex
+    offScreenCtx.lineTo(borderWidth, (size + borderWidth * 2) - borderWidth); // Line to the bottom-left vertex
+    offScreenCtx.lineTo((size + borderWidth * 2) - borderWidth, (size + borderWidth * 2) - borderWidth); // Line to the bottom-right vertex
+    offScreenCtx.closePath();
+    offScreenCtx.fill();
+
+    // Draw background image if provided
+    if (backgroundImage) {
+      try {
+        const image = await loadImage(backgroundImage);
+        offScreenCtx.drawImage(image, borderWidth, borderWidth, size, size);
+      } catch (error) {
+        console.error(`Failed to load background image: ${error}`);
+      }
+    }
+
+    // Draw triangle border with gradient if provided
+    if (borderGradient && borderWidth > 0) {
+      let gradientColors;
+      let gradientAngle = 0; // Default angle
+
+      if (Array.isArray(borderGradient)) { // If borderGradient is an array of colors
+        gradientColors = borderGradient;
+      } else if (typeof borderGradient === 'string') { // If borderGradient is a string of colors separated by spaces
+        gradientColors = borderGradient.split(' ');
+      } else { // If borderGradient is an object with stops or colors
+        const { angle = 0, stops, colors } = borderGradient;
+        gradientAngle = angle;
+        if (stops) {
+          gradientColors = stops.map(stop => stop.color);
+        } else if (colors) {
+          gradientColors = Array.isArray(colors) ? colors : colors.split(' ');
+        }
+      }
+
+      const radianAngle = (gradientAngle * Math.PI) / 180;
+      const innerRadius = (size + borderWidth * 2) / 2 - borderWidth; // Adjust for inward border
+
+      const x0 = (size + borderWidth * 2) / 2 + innerRadius * Math.cos(radianAngle - Math.PI / 2);
+      const y0 = (size + borderWidth * 2) / 2 + innerRadius * Math.sin(radianAngle - Math.PI / 2);
+      const x1 = (size + borderWidth * 2) / 2 + innerRadius * Math.cos(radianAngle + Math.PI / 2);
+      const y1 = (size + borderWidth * 2) / 2 + innerRadius * Math.sin(radianAngle + Math.PI / 2);
+
+      const gradient = offScreenCtx.createLinearGradient(x0, y0, x1, y1);
+
+      gradientColors.forEach((color, index) => {
+        const offset = index / (gradientColors.length - 1);
+        gradient.addColorStop(offset, color);
+      });
+
+      offScreenCtx.strokeStyle = gradient;
+    } else {
+      offScreenCtx.strokeStyle = borderColor || 'transparent';
+    }
+
+    offScreenCtx.lineWidth = borderWidth; // Set the border width
+    offScreenCtx.stroke();
 
     offScreenCtx.restore();
 
@@ -100,10 +159,10 @@ class TrianguleDrawer {
     cache.elements[cacheKey] = offScreenCanvas;
 
     // Draw the cached image on the main canvas
-    this.ctx.drawImage(offScreenCanvas, posX, posY);
+    this.ctx.drawImage(offScreenCanvas, posX - borderWidth, posY - borderWidth);
 
-    return { x: posX, y: posY, width: divWidth, height: divHeight };
+    return { x: posX - borderWidth, y: posY - borderWidth, width: size + borderWidth * 2, height: size + borderWidth * 2, size, shape: 'triangle' };
   }
 }
 
-module.exports = TrianguleDrawer;
+module.exports = TriangleDrawer;

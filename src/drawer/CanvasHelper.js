@@ -4,18 +4,65 @@
  * @returns {number} Converted pixel value as a number.
  */
 const pxToNumber = (value) => {
-  if (typeof value === 'string' && value.endsWith('px')) {
-    return parseFloat(value);
-  } else if (!isNaN(parseFloat(value))) {
-    return parseFloat(value);
-  }
-  return value;
+  if (['number', 'object'].includes(typeof value)) return value;
+  if (!value) return value; // Strange properties
+
+  const valuesSplited = typeof value === 'string' ? String(value).split(' ') : value;
+  const valuesArray=[];
+
+  for (let valueSplited of valuesSplited) {
+    if (valueSplited.endsWith('px')) {
+      valuesArray.push(parseFloat(valueSplited));
+    } else if (!isNaN(parseFloat(valueSplited))) {
+      valuesArray.push(parseFloat(valueSplited));
+    } else {
+      return value;
+    }
+  };
+
+  return valuesArray.length === 1 ? valuesArray[0] : valuesArray;
 };
 
+/**
+ * Converts a pixel value string to a number.
+ * @param {object} options - Options for parser to pixel.
+ * @returns {number} Converted pixel value as a number.
+ */
+function pixelParser(options) {
+  const transformedOptions = {};
+  for (const [key, value] of Object.entries(options)) {
+    if (value) transformedOptions[key] = pxToNumber(value);
+  }
+  return transformedOptions;
+}
+
+/**
+ * Draws a rounded rectangle on the canvas.
+ * @param {CanvasRenderingContext2D} ctx - Context to draw on.
+ * @param {number} x - X-coordinate of the top-left corner.
+ * @param {number} y - Y-coordinate of the top-left corner.
+ * @param {number} width - Width of the rectangle.
+ * @param {number} height - Height of the rectangle.
+ * @param {number|string|array} borderRadius - BorderRadius value(s) to parse.
+ */
+const roundRect = (ctx, x, y, width, height, borderRadius) => {
+  const [topLeft, topRight, bottomRight, bottomLeft] = parseBorderRadius(borderRadius);
+  ctx.beginPath();
+  ctx.moveTo(x + topLeft, y);
+  ctx.lineTo(x + width - topRight, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + topRight);
+  ctx.lineTo(x + width, y + height - bottomRight);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - bottomRight, y + height);
+  ctx.lineTo(x + bottomLeft, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - bottomLeft);
+  ctx.lineTo(x, y + topLeft);
+  ctx.quadraticCurveTo(x, y, x + topLeft, y);
+  ctx.closePath();
+}
 
 /**
  * Parses borderRadius values into an array of four numbers.
- * @param {number|string|Array} borderRadius - BorderRadius value(s) to parse.
+ * @param {number|string|array} borderRadius - BorderRadius value(s) to parse.
  * @returns {number[]} Array of four numbers representing top-left, top-right, bottom-right, bottom-left radii.
  */
 const parseBorderRadius = (borderRadius) => {
@@ -61,30 +108,6 @@ const parseBorderRadius = (borderRadius) => {
   }
 
   return values;
-}
-
-/**
- * Draws a rounded rectangle on the canvas.
- * @param {CanvasRenderingContext2D} ctx - Context to draw on.
- * @param {number} x - X-coordinate of the top-left corner.
- * @param {number} y - Y-coordinate of the top-left corner.
- * @param {number} width - Width of the rectangle.
- * @param {number} height - Height of the rectangle.
- * @param {number} borderRadius - Radius of the rectangle's corners.
- */
-const roundRect = (ctx, x, y, width, height, borderRadius) => {
-  const [topLeft, topRight, bottomRight, bottomLeft] = parseBorderRadius(borderRadius);
-  ctx.beginPath();
-  ctx.moveTo(x + topLeft, y);
-  ctx.lineTo(x + width - topRight, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + topRight);
-  ctx.lineTo(x + width, y + height - bottomRight);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - bottomRight, y + height);
-  ctx.lineTo(x + bottomLeft, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - bottomLeft);
-  ctx.lineTo(x, y + topLeft);
-  ctx.quadraticCurveTo(x, y, x + topLeft, y);
-  ctx.closePath();
 }
 
 /**
@@ -152,7 +175,8 @@ const calculatePosition = ({ ctx, x = 0, y = 0, width, height, radius, reference
 
 module.exports = {
   pxToNumber,
-  parseBorderRadius,
+  pixelParser,
   roundRect,
+  parseBorderRadius,
   calculatePosition,
 };

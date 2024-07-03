@@ -1,5 +1,5 @@
 const { createCanvas } = require("@napi-rs/canvas");
-const { calculatePosition } = require("./CanvasHelper");
+const { calculatePosition, pixelParser } = require("./CanvasHelper");
 const { getCachedImage, cache } = require("./CacheManager");
 
 class CircleDrawer {
@@ -10,26 +10,28 @@ class CircleDrawer {
 
   /**
    * Draws a circle on the canvas.
-   * @param {Object} options - Options for drawing the circle.
-   * @param {number} options.x - X-coordinate of the circle's center.
-   * @param {number} options.y - Y-coordinate of the circle's center.
-   * @param {number} options.radius - Radius of the circle.
-   * @param {Object} options.reference - Reference object for positioning.
-   * @param {string} options.backgroundColor - Background color of the circle.
-   * @param {string} options.backgroundImage - URL or path to the background image of the circle.
-   * @param {string} options.borderColor - Color of the circle's border.
-   * @param {string} options.borderWidth - Width of the circle's border.
-   * @param {Object} lastReference - Last reference object for positioning.
-   * @returns {Promise<Object>} Object with dimensions of the drawn circle { x, y, width, height }.
+   * @param {object} options - Options for drawing the circle.
+   * @param {string|number} options.x - X-coordinate of the circle's center.
+   * @param {string|number} options.y - Y-coordinate of the circle's center.
+   * @param {string|number} options.radius - Radius of the circle.
+   * @param {object} [options.reference] - Reference object for positioning.
+   * @param {string} [options.backgroundColor] - Background color of the circle.
+   * @param {string} [options.backgroundImage] - URL or path to the background image of the circle.
+   * @param {object|string|array} [options.backgroundGradient] - Background gradient of the circle.
+   * @param {string} [options.borderColor] - Color of the circle's border.
+   * @param {object|string|array} [options.borderGradient] - Color gradient of the circle's border.
+   * @param {string|number} [options.borderWidth] - Width of the circle's border.
+   * @param {object} [lastReference] - Last reference object for positioning.
+   * @returns {Promise<object>} Object with dimensions of the drawn circle { x, y, width, height }.
    */
   async drawCircle(options = {}, lastReference = null) {
-    const { x, y, radius, reference, backgroundColor, backgroundImage, borderColor, borderWidth } = options;
-    const { posX, posY, circleRadius } = calculatePosition({ ctx: this.ctx, x, y, radius, reference, lastReference });
+    const { x, y, radius, reference, backgroundColor, backgroundImage, backgroundGradient, borderColor, borderGradient, borderWidth } = pixelParser(options);
+    const { posX, posY, circleRadius } = calculatePosition({ ctx: this.ctx, x, y, radius, reference, lastReference, shape: "circle" });
 
-    const cacheKey = JSON.stringify({ x: posX, y: posY, radius: circleRadius, backgroundColor, backgroundImage, borderColor, borderWidth });
+    const cacheKey = JSON.stringify({ x: posX, y: posY, radius: circleRadius, backgroundColor, backgroundImage, backgroundGradient, borderColor, borderGradient, borderWidth, shape: "circle" });
     if (cache.elements[cacheKey]) {
       this.ctx.drawImage(cache.elements[cacheKey], posX - circleRadius, posY - circleRadius, circleRadius * 2, circleRadius * 2);
-      return { x: posX, y: posY, width: circleRadius * 2, height: circleRadius * 2 };
+      return { x: posX, y: posY, width: circleRadius * 2, height: circleRadius * 2, radius: circleRadius, shape: "circle" };
     }
 
     // Canvas off-screen para desenhar o elemento
@@ -58,9 +60,46 @@ class CircleDrawer {
       offScreenCtx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
     }
     
-    // Draw background color or image
-    if (backgroundColor && backgroundColor !== 'transparent') {
-      offScreenCtx.fillStyle = backgroundColor;
+    // Draw background color or gradient
+    if ((backgroundColor && backgroundColor !== 'transparent') || backgroundGradient) {
+      if (backgroundColor) {
+        offScreenCtx.fillStyle = backgroundColor;
+      } else if (backgroundGradient) {
+        let gradientColors;
+        let gradientAngle = 0; // Default angle
+
+        if (Array.isArray(backgroundGradient)) {
+          gradientColors = backgroundGradient;
+        } else if (typeof backgroundGradient === 'string') {
+          gradientColors = backgroundGradient.split(' ');
+        } else {
+          const { angle = 0, stops, colors } = backgroundGradient;
+          gradientAngle = angle;
+          if (stops) {
+            gradientColors = stops.map(stop => stop.color);
+          } else if (colors) {
+            gradientColors = Array.isArray(colors) ? colors : colors.split(' ');
+          }
+        }
+
+        // Calculate gradient start and end points
+        const radianAngle = (gradientAngle * Math.PI) / 180;
+        const x0 = circleRadius + (circleRadius * Math.cos(radianAngle - Math.PI / 2));
+        const y0 = circleRadius + (circleRadius * Math.sin(radianAngle - Math.PI / 2));
+        const x1 = circleRadius + (circleRadius * Math.cos(radianAngle + Math.PI / 2));
+        const y1 = circleRadius + (circleRadius * Math.sin(radianAngle + Math.PI / 2));
+
+        // Create gradient
+        const gradient = offScreenCtx.createLinearGradient(x0, y0, x1, y1);
+
+        gradientColors.forEach((color, index) => {
+          const offset = index / (gradientColors.length - 1);
+          gradient.addColorStop(offset, color);
+        });
+
+        offScreenCtx.fillStyle = gradient;
+      }
+
       offScreenCtx.beginPath();
       offScreenCtx.arc(circleRadius, circleRadius, circleRadius, 0, Math.PI * 2);
       offScreenCtx.closePath();
@@ -68,13 +107,49 @@ class CircleDrawer {
     }
 
     // Draw circle border if borderColor and borderWidth are specified
-    if (borderColor && borderWidth) {
-      offScreenCtx.strokeStyle = borderColor;
+    if ((borderColor || borderGradient) && borderWidth) {
+      if (borderColor) {
+        offScreenCtx.strokeStyle = borderColor;
+      } else if (borderGradient) {
+        let gradientColors;
+        let gradientAngle = 0; // Default angle
+    
+        if (Array.isArray(borderGradient)) {
+          gradientColors = borderGradient;
+        } else if (typeof borderGradient === 'string') {
+          gradientColors = borderGradient.split(' ');
+        } else {
+          const { angle = 0, stops, colors } = borderGradient;
+          gradientAngle = angle;
+          if (stops) {
+            gradientColors = stops.map(stop => stop.color);
+          } else if (colors) {
+            gradientColors = Array.isArray(colors) ? colors : colors.split(' ');
+          }
+        }
+    
+        // Calculate gradient start and end points
+        const radianAngle = (gradientAngle * Math.PI) / 180;
+        const x0 = circleRadius + (circleRadius * Math.cos(radianAngle - Math.PI / 2));
+        const y0 = circleRadius + (circleRadius * Math.sin(radianAngle - Math.PI / 2));
+        const x1 = circleRadius + (circleRadius * Math.cos(radianAngle + Math.PI / 2));
+        const y1 = circleRadius + (circleRadius * Math.sin(radianAngle + Math.PI / 2));
+    
+        // Create gradient
+        const gradient = offScreenCtx.createLinearGradient(x0, y0, x1, y1);
+    
+        gradientColors.forEach((color, index) => {
+          const offset = index / (gradientColors.length - 1);
+          gradient.addColorStop(offset, color);
+        });
+    
+        offScreenCtx.strokeStyle = gradient;
+      }
+
       const parsedBorderWidth = parseFloat(borderWidth);
 
       if (!isNaN(parsedBorderWidth)) {
-        // Ensure the border width is an integer for smoother rendering
-        offScreenCtx.lineWidth = Math.round(parsedBorderWidth);
+        offScreenCtx.lineWidth = parsedBorderWidth;
       } else {
         console.warn('Invalid borderWidth:', borderWidth);
         offScreenCtx.lineWidth = 1;
@@ -91,8 +166,8 @@ class CircleDrawer {
     cache.elements[cacheKey] = offScreenCanvas;
 
     this.ctx.drawImage(offScreenCanvas, posX - circleRadius, posY - circleRadius, circleRadius * 2, circleRadius * 2);
-
-    return { x: posX, y: posY, width: circleRadius * 2, height: circleRadius * 2 };
+   
+    return { x: posX - circleRadius, y: posY - circleRadius, width: circleRadius * 2, height: circleRadius * 2, shape: "circle" };
   }
 }
 

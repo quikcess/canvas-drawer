@@ -1,4 +1,4 @@
-const { pxToNumber } = require("./CanvasHelper");
+const { pxToNumber, pixelParser } = require("./CanvasHelper");
 const { cache } = require("./CacheManager");
 const { createCanvas } = require("@napi-rs/canvas");
 
@@ -21,7 +21,7 @@ class LineDrawer {
    * @returns {Object} Object containing the line's details.
    */
   async drawLine(options = {}) {
-    const { startX, startY, endX, endY, lineWidth = 1, lineColor = 'black', lineCap = 'butt' } = options;
+    const { startX, startY, endX, endY, lineWidth = 1, lineColor = 'black', lineCap = 'butt' } = pixelParser(options);
 
     const startPosX = pxToNumber(startX);
     const startPosY = pxToNumber(startY);

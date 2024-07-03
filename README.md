@@ -1,3 +1,4 @@
+
 <div align="center">
   <img alt="CanvasDrawer Banner" src="https://i.ibb.co/vxCbchW/Quikcess-Banner1-github.png">
 </div>
@@ -74,7 +75,9 @@ Draws a rectangle on the canvas.
     - `height`: Height of the rectangle.
     - `backgroundColor`: Background color of the rectangle.
     - `backgroundImage`: Background image of the rectangle.
+    - `backgroundGradient`: Background gradient of the rectangle.
     - `borderColor`: Border color of the rectangle.
+    - `borderGradient`: Border gradient of the rectangle.
     - `borderWidth`: Border width of the rectangle.
     - `borderRadius`: Corner radius of the rectangle.
     - `reference`: Reference for positioning the rectangle relative to another element.
@@ -91,8 +94,10 @@ Draws a circle on the canvas.
     - `y`: Vertical position of the circle.
     - `radius`: Radius of the circle.
     - `backgroundColor`: Background color of the circle.
+    - `backgroundGradient`: Background gradient of the circle.
     - `backgroundImage`: Background image of the circle.
     - `borderColor`: Border color of the circle.
+    - `borderGradient`: Border gradient of the circle.
     - `borderWidth`: Border width of the circle.
     - `reference`: Reference for positioning the circle relative to another element.
 
@@ -122,10 +127,11 @@ Draws a triangle on the canvas.
   - `options`: Object with triangle options.
     - `x`: Horizontal position of the triangle.
     - `y`: Vertical position of the triangle.
-    - `width`: Width of the triangle base.
-    - `height`: Height of the triangle.
+    - `size`: Size of the triangle.
     - `backgroundColor`: Background color of the triangle.
     - `backgroundImage`: Background image of the triangle.
+    - `backgroundGradient`: Background gradient of the triangle.
+    - `borderGradient`: Border gradient of the triangle.
     - `borderColor`: Border color of the triangle.
     - `borderWidth`: Border width of the triangle.
     - `reference`: Reference for positioning the triangle relative to another element.
@@ -133,8 +139,6 @@ Draws a triangle on the canvas.
 - **Returns:** Object with dimensions of the drawn triangle.
 
 ### Advanced Usage
-
-### Working with Attachments in Discord
 
 #### `generateAttachment(fileName, options)`
 
@@ -170,7 +174,7 @@ Sets a custom 2D context for the canvas.
 - **Parameters:**
   - `ctx`: New 2D context to be set.
 
-## Cache Management
+### Cache Management
 
 #### `clearCache(options)`
 
@@ -180,7 +184,85 @@ Clears the cache based on the provided options.
   - `options`: Options to specify which parts of the cache to clear.
     - `images`: Whether to clear the image cache (default: true).
     - `elements`: Whether to clear the elements cache (default: true).
-    - `attachments`: Whether to clear the attachments cache (default: true).
+
+### Using Gradient
+
+#### `backgroundGradient`
+
+Different ways to make a gradient
+
+#####  Stops:
+
+```js
+await canvasDrawer.drawRect({
+  x: 100,
+  y: 100,
+  width: 200,
+  height: 150,
+  backgroundGradient: {
+    angle: 45, // Angle in degrees
+    stops: [
+      { offset: 0, color: 'red' },
+      { offset: 0.5, color: 'blue' },
+      { offset: 1, color: 'green' }
+    ]
+  }
+});
+```
+
+##### Using an Array of Colors:
+
+```js
+await canvasDrawer.drawRect({
+  x: 100,
+  y: 100,
+  width: 200,
+  height: 150,
+  backgroundGradient: ["blue", "pink", "red"]
+});
+```
+
+##### Using a Space-Separated String of Colors:
+
+```js
+await canvasDrawer.drawRect({
+  x: 100,
+  y: 100,
+  width: 200,
+  height: 150,
+  backgroundGradient: "blue pink red"
+});
+```
+
+### Notes:
+
+- The `angle` property defines the direction of the gradient. For example, an angle of 0 degrees will create a gradient from left to right, while an angle of 90 degrees will create a gradient from top to bottom.
+- If no `offset` is specified in `stops`, the colors will be evenly distributed along the gradient.
+
+### Example Code for Drawing a Gradient Rectangle
+
+```js
+const { CanvasDrawer } = require('canvas-drawer');
+
+const canvas = new CanvasDrawer(800, 600);
+
+canvas.drawRect({
+  x: 100,
+  y: 100,
+  width: 200,
+  height: 150,
+  backgroundGradient: {
+    angle: 45, // Angle in degrees
+    stops: [
+      { offset: 0, color: 'red' },
+      { offset: 0.5, color: 'blue' },
+      { offset: 1, color: 'green' }
+    ]
+  }
+});
+
+const buffer = canvas.getBuffer(); // Use buffer as needed
+```
 
 ## Contributing
 

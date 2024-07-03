@@ -1,5 +1,5 @@
 const { createCanvas } = require("@napi-rs/canvas");
-const { calculatePosition, roundRect } = require("./CanvasHelper");
+const { calculatePosition, roundRect, pixelParser, isOverlapping } = require("./CanvasHelper");
 const { getCachedImage, cache } = require("./CacheManager");
 
 class RectDrawer {
@@ -9,30 +9,33 @@ class RectDrawer {
   }
 
   /**
-   * Draws a rectangle on the canvas with optional background image and border.
-   * @param {Object} options - Options for drawing the rectangle.
-   * @param {number} options.x - X-coordinate of the rectangle's top-left corner.
-   * @param {number} options.y - Y-coordinate of the rectangle's top-left corner.
-   * @param {number} options.width - Width of the rectangle.
-   * @param {number} options.height - Height of the rectangle.
-   * @param {Object} options.reference - Reference object for positioning.
-   * @param {string} options.backgroundColor - Background color of the rectangle.
-   * @param {string} options.backgroundImage - URL or path to the background image of the rectangle.
-   * @param {string} options.borderColor - Color of the rectangle's border.
-   * @param {string} options.borderWidth - Width of the rectangle's border.
-   * @param {string} options.borderStyle - Style of the rectangle's border ('dashed', 'dotted', etc.).
-   * @param {number} options.borderRadius - Radius of the rectangle's corners.
-   * @param {Object} lastReference - Last reference object for positioning.
-   * @returns {Promise<Object>} Object with dimensions of the drawn rectangle { x, y, width, height }.
+   * Draws a rectangle on the canvas with optional background image, gradient, and border.
+   * @param {object} options - Options for drawing the rectangle.
+   * @param {number|string} options.x - X-coordinate of the rectangle's top-left corner.
+   * @param {number|string} options.y - Y-coordinate of the rectangle's top-left corner.
+   * @param {number|string} options.width - Width of the rectangle.
+   * @param {number|string} options.height - Height of the rectangle.
+   * @param {object} [options.reference] - Reference object for positioning.
+   * @param {string} [options.backgroundColor] - Background color of the rectangle.
+   * @param {string} [options.backgroundImage] - URL or path to the background image of the rectangle.
+   * @param {object|string|array} [options.backgroundGradient] - Background gradient of the rectangle.
+   * @param {string} [options.borderColor] - Color of the rectangle's border.
+   * @param {object|string|array} [options.borderGradient] - Color gradient of the rectangle's border.
+   * @param {string} [options.borderWidth] - Width of the rectangle's border.
+   * @param {string} [options.borderStyle] - Style of the rectangle's border ('dashed', 'dotted', etc.).
+   * @param {number|string|array} [options.borderRadius] - Radius of the rectangle's corners.
+   * @param {object} [lastReference] - Last reference object for positioning.
+   * @returns {Promise<object>} Object with dimensions of the drawn rectangle { x, y, width, height }.
    */
   async drawRect(options = {}, lastReference = null) {
-    const { x, y, width, height, reference, borderRadius = 0, backgroundColor, backgroundImage, borderColor, borderWidth, borderStyle } = options;
-    const { posX, posY, divWidth, divHeight } = calculatePosition({ ctx: this.ctx, x, y, width, height, reference, lastReference });
+    const { x, y, width, height, reference, borderRadius = 0, borderWidth, borderColor, borderGradient, borderStyle, backgroundColor, backgroundImage, backgroundGradient } = pixelParser(options);
+    const { posX, posY, divWidth, divHeight } = calculatePosition({ ctx: this.ctx, x, y, width, height, reference, lastReference, shape: "rectangle" });
 
-    const cacheKey = JSON.stringify({ x: posX, y: posY, width: divWidth, height: divHeight, borderRadius, backgroundColor, backgroundImage, borderColor, borderWidth, borderStyle });
+    // Verificar sobreposição
+    const cacheKey = JSON.stringify({ width: divWidth, height: divHeight, borderRadius, backgroundColor, backgroundImage, backgroundGradient, borderColor, borderWidth, borderStyle, shape: "rectangle" });
     if (cache.elements[cacheKey]) {
       this.ctx.drawImage(cache.elements[cacheKey], posX, posY, divWidth, divHeight);
-      return { x: posX, y: posY, width: divWidth, height: divHeight };
+      return { x: posX, y: posY, width: divWidth, height: divHeight, shape: "rectangle" };
     }
 
     // Canvas off-screen para desenhar o elemento
@@ -61,18 +64,88 @@ class RectDrawer {
       offScreenCtx.drawImage(image, imageX, imageY, imageWidth, imageHeight);
     }
     
-    // Draw background color if provided and not transparent
-    if (backgroundColor && backgroundColor !== 'transparent') {
-      offScreenCtx.fillStyle = backgroundColor;
+    // Draw backgroundColor/backgroundGradient if provided and not transparent
+    if ((backgroundColor && backgroundColor !== 'transparent') || backgroundGradient) {
+      if (backgroundColor) {
+        offScreenCtx.fillStyle = backgroundColor;
+      } else if (backgroundGradient) {
+        let gradientColors;
+        let gradientAngle = 0; // Default angle
+        
+        if (Array.isArray(backgroundGradient)) { // If backgroundGradient is an array of colors
+          gradientColors = backgroundGradient;
+        } else if (typeof backgroundGradient === 'string') { // If backgroundGradient is a string of colors separated by spaces
+          gradientColors = backgroundGradient.split(' ');
+        } else { // If backgroundGradient is an object with stops or colors
+          const { angle = 0, stops, colors } = backgroundGradient;
+          gradientAngle = angle;
+          if (stops) {
+            gradientColors = stops.map(stop => stop.color);
+          } else if (colors) {
+            gradientColors = Array.isArray(colors) ? colors : colors.split(' ');
+          }
+        }
+  
+        const radianAngle = (gradientAngle * Math.PI) / 180;
+        const x0 = divWidth / 2 + (divWidth / 2) * Math.cos(radianAngle - Math.PI / 2);
+        const y0 = divHeight / 2 + (divHeight / 2) * Math.sin(radianAngle - Math.PI / 2);
+        const x1 = divWidth / 2 + (divWidth / 2) * Math.cos(radianAngle + Math.PI / 2);
+        const y1 = divHeight / 2 + (divHeight / 2) * Math.sin(radianAngle + Math.PI / 2);
+  
+        const gradient = offScreenCtx.createLinearGradient(x0, y0, x1, y1);
+  
+        gradientColors.forEach((color, index) => {
+          const offset = index / (gradientColors.length - 1);
+          gradient.addColorStop(offset, color);
+        });
+  
+        offScreenCtx.fillStyle = gradient;
+      }
+      
       offScreenCtx.beginPath();
       roundRect(offScreenCtx, 0, 0, divWidth, divHeight, borderRadius);
       offScreenCtx.closePath();
       offScreenCtx.fill();
     }
 
-    // Draw rectangle border if borderColor and borderWidth are specified
-    if (borderColor && borderWidth) {
-      offScreenCtx.strokeStyle = borderColor;
+    // Draw rectangle border if borderColor/borderGradient and borderWidth are specified
+    if ((borderColor || borderGradient) && borderWidth) {
+      if (borderColor) {
+        offScreenCtx.strokeStyle = borderColor;
+      } else if (borderGradient) { // Gradient
+        let gradientColors;
+        let gradientAngle = 0; // Default angle
+        
+        if (Array.isArray(borderGradient)) { // If borderGradient is an array of colors
+          gradientColors = borderGradient;
+        } else if (typeof borderGradient === 'string') { // If borderGradient is a string of colors separated by spaces
+          gradientColors = borderGradient.split(' ');
+        } else { // If borderGradient is an object with stops or colors
+          const { angle = 0, stops, colors } = borderGradient;
+          gradientAngle = angle;
+          if (stops) {
+            gradientColors = stops.map(stop => stop.color);
+          } else if (colors) {
+            gradientColors = Array.isArray(colors) ? colors : colors.split(' ');
+          }
+        }
+  
+        const radianAngle = (gradientAngle * Math.PI) / 180;
+        const x0 = divWidth / 2 + (divWidth / 2) * Math.cos(radianAngle - Math.PI / 2);
+        const y0 = divHeight / 2 + (divHeight / 2) * Math.sin(radianAngle - Math.PI / 2);
+        const x1 = divWidth / 2 + (divWidth / 2) * Math.cos(radianAngle + Math.PI / 2);
+        const y1 = divHeight / 2 + (divHeight / 2) * Math.sin(radianAngle + Math.PI / 2);
+  
+        const gradient = offScreenCtx.createLinearGradient(x0, y0, x1, y1);
+  
+        gradientColors.forEach((color, index) => {
+          const offset = index / (gradientColors.length - 1);
+          gradient.addColorStop(offset, color);
+        });
+  
+        offScreenCtx.strokeStyle = gradient;
+      }
+
       const parsedBorderWidth = parseFloat(borderWidth);
 
       if (!isNaN(parsedBorderWidth)) {
@@ -81,6 +154,11 @@ class RectDrawer {
         console.warn('Invalid borderWidth:', borderWidth);
         offScreenCtx.lineWidth = 1;
       }
+      const halfBorderWidth = offScreenCtx.lineWidth / 2;
+      const pathX = halfBorderWidth;
+      const pathY = halfBorderWidth;
+      const pathWidth = divWidth - offScreenCtx.lineWidth;
+      const pathHeight = divHeight - offScreenCtx.lineWidth;
 
       switch (borderStyle) {
         case 'dashed':
@@ -94,8 +172,12 @@ class RectDrawer {
           break;
       }
 
+      const newBorderRadius = ['string', 'number'].includes(typeof borderRadius) ?
+        String(borderRadius).split(" ").map(s => s != 0 ? s-(halfBorderWidth*1.5) : 0 ) :
+      borderRadius.map(s => s != 0 ? s-(halfBorderWidth*1.5) : 0 )
+      
       offScreenCtx.beginPath();
-      roundRect(offScreenCtx, 0, 0, divWidth, divHeight, borderRadius);
+      roundRect(offScreenCtx, pathX, pathY, pathWidth, pathHeight, newBorderRadius);
       offScreenCtx.closePath();
       offScreenCtx.stroke();
     }
@@ -106,7 +188,7 @@ class RectDrawer {
 
     this.ctx.drawImage(offScreenCanvas, posX, posY, divWidth, divHeight);
 
-    return { x: posX, y: posY, width: divWidth, height: divHeight };
+    return { x: posX, y: posY, width: divWidth, height: divHeight, shape: "rectangle" };
   }
 }
 

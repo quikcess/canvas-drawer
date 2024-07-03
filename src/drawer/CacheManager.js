@@ -2,16 +2,11 @@ const { loadImage } = require("@napi-rs/canvas");
 
 const imageError404URL = "https://i.ibb.co/CJYLYrt/Error404.jpg";
 
-// Cache object to store images, elements, and attachments
+// Cache object to store images and elements
 const cache = {
   images: {},
   elements: {},
-  attachments: {},
 };
-
-setInterval(() => {
-  console.log(cache)
-}, 30000);
 
 const CACHE_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
@@ -22,7 +17,7 @@ setInterval(() => {
 
 /**
  * Retrieves a value from the cache or loads it using the provided load function.
- * @param {string} type - Type of cache (e.g., 'images', 'elements', 'attachments').
+ * @param {string} type - Type of cache (e.g., 'images', 'elements').
  * @param {string} key - Key to identify the cached item.
  * @param {Function} loadFunction - Function to load the item if not in cache.
  * @returns {Promise<any>} - The cached or loaded value.
@@ -59,20 +54,16 @@ async function getCachedImage(url) {
 
 /**
  * Clears the cache based on the provided options.
- * @param {Object} options - Options to specify which parts of the cache to clear.
- * @param {boolean} options.images - Whether to clear the image cache (default: true).
- * @param {boolean} options.elements - Whether to clear the elements cache (default: true).
- * @param {boolean} options.attachments - Whether to clear the attachments cache (default: true).
+ * @param {Object} [options] - Options to specify which parts of the cache to clear.
+ * @param {boolean} [options.images] - Whether to clear the image cache (default: true).
+ * @param {boolean} [options.elements] - Whether to clear the elements cache (default: true).
  */
-function clearCache(options = { images: true, elements: true, attachments: true }) {
+function clearCache(options = { images: true, elements: true }) {
   if (options.images) {
     cache.images = {};
   }
   if (options.elements) {
     cache.elements = {};
-  }
-  if (options.attachments) {
-    cache.attachments = {};
   }
 }
 
