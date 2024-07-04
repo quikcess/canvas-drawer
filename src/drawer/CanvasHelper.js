@@ -36,6 +36,7 @@ function pixelParser(options) {
   return transformedOptions;
 }
 
+
 /**
  * Draws a rounded rectangle on the canvas.
  * @param {CanvasRenderingContext2D} ctx - Context to draw on.
@@ -58,6 +59,21 @@ const roundRect = (ctx, x, y, width, height, borderRadius) => {
   ctx.lineTo(x, y + topLeft);
   ctx.quadraticCurveTo(x, y, x + topLeft, y);
   ctx.closePath();
+}
+
+/**
+ * Validates if the provided MIME type is valid.
+ * @param {string} mimeType - MIME type to validate.
+ * @returns {boolean} True if the MIME type is valid, otherwise false.
+ */
+function isValidMimeType(mimeType) {
+  const validMimeTypes = [
+    "image/jpeg",
+    "image/png",
+    "image/webp"
+  ];
+
+  return validMimeTypes.includes(mimeType);
 }
 
 /**
@@ -114,69 +130,112 @@ const parseBorderRadius = (borderRadius) => {
  * Calculates the position and dimensions for drawing an element on the canvas.
  * Supports positioning based on absolute values, centering, and relative positioning to a reference object.
  * @param {CanvasRenderingContext2D} ctx - Canvas rendering context.
+ * @param {string} shape - Shape of the element ('rectangle', 'circle', 'line', 'triangle').
  * @param {number|string} [x=0] - X-coordinate or alignment ('center') of the element.
  * @param {number|string} [y=0] - Y-coordinate or alignment ('center') of the element.
  * @param {number|string} [width] - Width of the element.
  * @param {number|string} [height] - Height of the element.
  * @param {number} [radius] - Radius of the element (for circles).
+ * @param {number} [size] - Size of the element (for triangles).
+ * @param {number} [borderWidth] - Element border width (for triangles).
+ * @param {number} [lineWidth] - Element border width (for lines).
  * @param {Object} [reference] - Reference object for positioning relative to another element.
  * @param {Object} [lastReference] - Last reference object used for positioning.
  * @returns {Object} - Object containing calculated position and dimensions.
  */
-const calculatePosition = ({ ctx, x = 0, y = 0, width, height, radius, reference, lastReference }) => {
-  let posX = pxToNumber(x);
-  let posY = pxToNumber(y);
+const calculatePosition = ({
+  ctx,
+  shape,
+  x = 0,
+  y = 0,
+  width,
+  height,
+  radius,
+  size,
+  borderWidth,
+  lineWidth,
+  reference,
+  lastReference,
+}) => {
+  let posX = typeof x === 'string' ? 0 : x;
+  let posY = typeof y === 'string' ? 0 : y;
 
-  width = pxToNumber(width);
-  height = pxToNumber(height);
-  radius = pxToNumber(radius);
+  let referenceNow = reference === 'auto' ? lastReference || null : reference;
 
-  if (typeof x === 'string' && x.toLowerCase() === 'center') {
-    posX = (ctx.canvas.width - (width || radius)) / 2;
-  }
+  const isCenterX = typeof x === 'string' && x.toLowerCase() === 'center';
+  const isCenterY = typeof y === 'string' && y.toLowerCase() === 'center';
 
-  if (typeof y === 'string' && y.toLowerCase() === 'center') {
-    posY = (ctx.canvas.height - (height || radius)) / 2;
-  }
+  if (shape === 'rectangle') {
+    if (isCenterX) posX = (ctx.canvas.width - width) / 2;
+    if (isCenterY) posY = (ctx.canvas.height - height) / 2;
 
-  if (reference && (typeof x === 'string' && x.toLowerCase() === 'center' || typeof y === 'string' && y.toLowerCase() === 'center')) {
-    if (reference === 'auto' && lastReference) {
-      reference = lastReference;
-    }
-
-    if (reference.x !== undefined) {
-      const relX = pxToNumber(reference.x);
-      if (typeof x === 'string' && x.toLowerCase() === 'center') {
-        posX = reference.radius ?
-          relX + pxToNumber(reference.radius) / 2 - (width || radius) / 2 :
-          relX + (pxToNumber(reference.width) - (width || radius)) / 2;
+    if (referenceNow && (isCenterX || isCenterY)) {
+      if (isCenterX && referenceNow.x !== undefined) {
+        posX = referenceNow.x + ((referenceNow.width || referenceNow.radius || 0) - width) / 2;
+      }
+      if (isCenterY && referenceNow.y !== undefined) {
+        posY = referenceNow.y + ((referenceNow.height || referenceNow.radius || 0) - height) / 2;
       }
     }
 
-    if (reference.y !== undefined) {
-      const relY = pxToNumber(reference.y);
-      if (typeof y === 'string' && y.toLowerCase() === 'center') {
-        posY = reference.radius ?
-          relY + pxToNumber(reference.radius) / 2 - (height || radius) / 2 :
-          relY + (pxToNumber(reference.height) - (height || radius)) / 2;
-      }
-    }
-  }
-
-  if (radius) {
-    const circleRadius = radius / 2;
-    return { posX, posY, circleRadius };
-  } else {
     const divWidth = width;
     const divHeight = height;
     return { posX, posY, divWidth, divHeight };
   }
-}
+
+  if (shape === 'circle') {
+    if (isCenterX) posX = ctx.canvas.width / 2;
+    if (isCenterY) posY = ctx.canvas.height / 2;
+
+    if (referenceNow && (isCenterX || isCenterY)) {
+      if (isCenterX && referenceNow.x !== undefined) {
+        posX = referenceNow.x + ((referenceNow.width || referenceNow.radius || 0) / 2);
+      }
+      if (isCenterY && referenceNow.y !== undefined) {
+        posY = referenceNow.y + ((referenceNow.height || referenceNow.radius || 0) / 2);
+      }
+    }
+
+    const circleRadius = radius / 2;
+    return { posX, posY, circleRadius };
+  }
+
+  if (shape === 'line') {
+    if (isCenterX) posX = ctx.canvas.width / 2;
+    if (isCenterY) posY = ctx.canvas.height / 2;
+
+    if (referenceNow && (isCenterX || isCenterY)) {
+      if (isCenterX) posX = referenceNow.x + (referenceNow.width || referenceNow.radius || 0) / 2;
+      if (isCenterY) posY = referenceNow.y + (referenceNow.height || referenceNow.radius || 0) / 2 + lineWidth / 2;
+    }
+
+    return { posX, posY };
+  }
+
+  if (shape === 'triangle') {
+    if (isCenterX) posX = (ctx.canvas.width - size - borderWidth * 2) / 2;
+    if (isCenterY) posY = (ctx.canvas.height - size - borderWidth * 2) / 2;
+
+    if (referenceNow && (isCenterX || isCenterY)) {
+      if (isCenterX) {
+        posX = referenceNow.x + (referenceNow.width || referenceNow.radius || 0) / 2 - size / 2 - borderWidth;
+      }
+      if (isCenterY) {
+        posY = referenceNow.y + (referenceNow.height || referenceNow.radius || 0) / 2 - size / 2 - borderWidth;
+      }
+    }
+
+    return { posX, posY };
+  }
+
+  return { posX, posY };
+};
 
 module.exports = {
   pxToNumber,
   pixelParser,
   roundRect,
+  isValidMimeType,
   parseBorderRadius,
   calculatePosition,
 };

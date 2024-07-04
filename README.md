@@ -138,6 +138,39 @@ Draws a triangle on the canvas.
 
 - **Returns:** Object with dimensions of the drawn triangle.
 
+#### `drawText(text, x, y, options)`
+
+Draws text on the canvas.
+
+- **Parameters:**
+  - `options` (optional): Options for drawing the text.
+    - `text`: The text to draw.
+    - `x`: The x-coordinate of the text.
+    - `y`: The y-coordinate of the text.
+    - `font`: Font style for the text (default: '30px sans-serif').
+    - `color`: Color of the text (default: '#000000').
+    - `align`: Text alignment ('start', 'end', 'left', 'right', 'center'; default: 'start').
+    - `baseline`: Text baseline ('top', 'hanging', 'middle', 'alphabetic', 'ideographic', 'bottom'; default: 'alphabetic').
+
+- **Returns:**
+  - Object with properties `x`, `y`, `font`, `color`, `align`, `baseline`, `shape`.
+
+#### Example
+
+```javascript
+const canvas = new CanvasDrawer(800, 600);
+
+canvas.drawText({
+  text: 'Hello, CanvasDrawer!',
+  x: 400,
+  y: 300,
+  font: 'bold 36px Arial',
+  color: 'blue',
+  align: 'center',
+  baseline: 'middle'
+});
+```
+
 ### Advanced Usage
 
 #### `generateAttachment(fileName, options)`

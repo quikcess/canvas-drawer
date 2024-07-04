@@ -26,12 +26,12 @@ class CircleDrawer {
    */
   async drawCircle(options = {}, lastReference = null) {
     const { x, y, radius, reference, backgroundColor, backgroundImage, backgroundGradient, borderColor, borderGradient, borderWidth } = pixelParser(options);
-    const { posX, posY, circleRadius } = calculatePosition({ ctx: this.ctx, x, y, radius, reference, lastReference, shape: "circle" });
+    const { posX, posY, circleRadius } = calculatePosition({ ctx: this.ctx, shape: "circle", x, y, radius, reference, lastReference });
 
     const cacheKey = JSON.stringify({ x: posX, y: posY, radius: circleRadius, backgroundColor, backgroundImage, backgroundGradient, borderColor, borderGradient, borderWidth, shape: "circle" });
     if (cache.elements[cacheKey]) {
       this.ctx.drawImage(cache.elements[cacheKey], posX - circleRadius, posY - circleRadius, circleRadius * 2, circleRadius * 2);
-      return { x: posX, y: posY, width: circleRadius * 2, height: circleRadius * 2, radius: circleRadius, shape: "circle" };
+      return { x: posX - circleRadius, y: posY - circleRadius, width: circleRadius * 2, height: circleRadius * 2, shape: "circle" };
     }
 
     // Canvas off-screen para desenhar o elemento

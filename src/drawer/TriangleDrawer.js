@@ -1,6 +1,6 @@
 const { createCanvas, loadImage } = require('@napi-rs/canvas');
 const { cache } = require('./CacheManager');
-const { pxToNumber, pixelParser } = require('./CanvasHelper');
+const { pxToNumber, pixelParser, calculatePosition } = require('./CanvasHelper');
 
 class TriangleDrawer {
   constructor(ctx) {
@@ -10,7 +10,7 @@ class TriangleDrawer {
 
   /**
    * Draws a triangle on the canvas.
-   * @param {Object} options - Options for drawing the triangle.
+   * @param {object} options - Options for drawing the triangle.
    * @param {number|string} options.x - Horizontal position of the triangle (can be numeric or 'center').
    * @param {number|string} options.y - Vertical position of the triangle (can be numeric or 'center').
    * @param {number} options.size - Size of the triangle (base and height will be the same).
@@ -20,35 +20,45 @@ class TriangleDrawer {
    * @param {string} [options.borderColor] - Border color of the triangle.
    * @param {object|string|array} [options.borderGradient] - Color gradient of the triangle's border.
    * @param {number} [options.borderWidth=0] - Border width of the triangle.
-   * @returns {Object} Object containing the triangle's details.
+   * @param {object} [lastReference] - Last reference object for positioning.
+   * @returns {Promise<object>} Object containing the triangle's details.
    */
   async drawTriangle(options = {}, lastReference = null) {
     const { x, y, size, backgroundColor = 'transparent', backgroundImage, backgroundGradient, borderColor, borderGradient, borderWidth = 0, reference } = pixelParser(options);
 
-    // Convert position values if 'center' or 'center' is provided
-    let posX = x === 'center' ? (this.canvas.width - size - borderWidth * 2) / 2 : x;
-    let posY = y === 'center' ? (this.canvas.height - size - borderWidth * 2) / 2 : y;
+    const { posX, posY } = calculatePosition({
+      ctx: this.ctx,
+      shape: 'triangle',
+      x,
+      y,
+      size,
+      borderWidth,
+      reference,
+      lastReference,
+    });
 
-    if (reference) {
-      let referenceNow=reference;
-      if (reference === 'auto' && lastReference) {
-        referenceNow=lastReference;
-      }
-      if (x === 'center') {
-        // posX = lastReference.width - size - borderWidth * 2;
-        posX = referenceNow.x + (referenceNow.width || 0) / 2 - size / 2 - borderWidth;
-      }
+    // // Convert position values if 'center' or 'center' is provided
+    // let posX = x === 'center' ? (this.canvas.width - size - borderWidth * 2) / 2 : x;
+    // let posY = y === 'center' ? (this.canvas.height - size - borderWidth * 2) / 2 : y;
 
-      if (y === 'center') {
-        // posY = lastReference.height - size - borderWidth * 2;
-        posY = referenceNow.y + (referenceNow.height || 0) / 2 - size / 2 - borderWidth;
-      }
-    }
+    // if (reference) {
+    //   let referenceNow=reference;
+    //   if (reference === 'auto' && lastReference) {
+    //     referenceNow=lastReference;
+    //   }
+    //   if (x === 'center') {
+    //     posX = referenceNow.x + (referenceNow.width || 0) / 2 - size / 2 - borderWidth;
+    //   }
 
-    const cacheKey = JSON.stringify({ x: posX, y: posY, size, backgroundColor, backgroundImage, backgroundGradient, borderColor, borderGradient, borderWidth, shape: 'triangle' });
+    //   if (y === 'center') {
+    //     posY = referenceNow.y + (referenceNow.height || 0) / 2 - size / 2 - borderWidth;
+    //   }
+    // }
+
+    const cacheKey = JSON.stringify({ size, backgroundColor, backgroundImage, backgroundGradient, borderColor, borderGradient, borderWidth, shape: 'triangle' });
     if (cache.elements[cacheKey]) {
       this.ctx.drawImage(cache.elements[cacheKey], posX, posY); // Draw cached image directly
-      return;
+      return { x: posX - borderWidth, y: posY - borderWidth, width: size + borderWidth * 2, height: size + borderWidth * 2, size, shape: 'triangle' };
     }
 
     // Create off-screen canvas for drawing the triangle

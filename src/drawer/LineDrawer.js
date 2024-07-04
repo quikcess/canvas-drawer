@@ -1,4 +1,4 @@
-const { pxToNumber, pixelParser } = require("./CanvasHelper");
+const { pxToNumber, pixelParser, calculatePosition } = require("./CanvasHelper");
 const { cache } = require("./CacheManager");
 const { createCanvas } = require("@napi-rs/canvas");
 
@@ -11,27 +11,30 @@ class LineDrawer {
   /**
    * Draws a line on the canvas.
    * @param {Object} options - Options for drawing the line.
-   * @param {number} options.startX - Starting horizontal position of the line.
-   * @param {number} options.startY - Starting vertical position of the line.
-   * @param {number} options.endX - Ending horizontal position of the line.
-   * @param {number} options.endY - Ending vertical position of the line.
+   * @param {number|string} options.startX - Starting horizontal position of the line.
+   * @param {number|string} options.startY - Starting vertical position of the line.
+   * @param {number|string} options.endX - Ending horizontal position of the line.
+   * @param {number|string} options.endY - Ending vertical position of the line.
    * @param {number} [options.lineWidth=1] - Width of the line.
    * @param {string} [options.lineColor='black'] - Color of the line.
    * @param {string} [options.lineCap='butt'] - Style of the line's end caps ('butt', 'round', 'square').
+   * @param {object} [lastReference] - Last reference object for positioning.
    * @returns {Object} Object containing the line's details.
    */
-  async drawLine(options = {}) {
-    const { startX, startY, endX, endY, lineWidth = 1, lineColor = 'black', lineCap = 'butt' } = pixelParser(options);
+  async drawLine(options = {}, lastReference = null) {
+    const { startX, startY, endX, endY, lineWidth = 1, lineColor = 'black', lineCap = 'butt', reference } = pixelParser(options);
 
-    const startPosX = pxToNumber(startX);
-    const startPosY = pxToNumber(startY);
-    const endPosX = pxToNumber(endX);
-    const endPosY = pxToNumber(endY);
+    // Calculate the start and end positions using calculatePosition
+    const startPosition = calculatePosition({ ctx: this.ctx, shape: 'line', x: startX, y: startY, lineWidth, reference, lastReference });
+    const endPosition = calculatePosition({ ctx: this.ctx, shape: 'line', x: endX, y: endY, lineWidth, reference, lastReference });
+
+    const { posX: startPosX, posY: startPosY } = startPosition;
+    const { posX: endPosX, posY: endPosY } = endPosition;
 
     const cacheKey = JSON.stringify({ startX: startPosX, startY: startPosY, endX: endPosX, endY: endPosY, lineWidth, lineColor, lineCap });
     if (cache.elements[cacheKey]) {
       this.ctx.drawImage(cache.elements[cacheKey], startPosX - lineWidth, startPosY - lineWidth); // Draw at (startPosX - lineWidth, startPosY - lineWidth)
-      return { startX: startPosX, startY: startPosY, endX: endPosX, endY: endPosY, lineWidth, lineColor, lineCap };
+      return { startX: startPosX, startY: startPosY, endX: endPosX, endY: endPosY, lineWidth, lineColor, lineCap, x: startPosX, y: startPosY, width: endPosX - startPosX, height: endPosY - startPosY };
     }
 
     // Calculate the dimensions of the canvas for the line
@@ -59,7 +62,7 @@ class LineDrawer {
     // Draw the cached image on the main canvas
     this.ctx.drawImage(offScreenCanvas, startPosX - lineWidth, startPosY - lineWidth); // Draw at (startPosX - lineWidth, startPosY - lineWidth)
 
-    return { startX: startPosX, startY: startPosY, endX: endPosX, endY: endPosY, lineWidth, lineColor, lineCap };
+    return { startX: startPosX, startY: startPosY, endX: endPosX, endY: endPosY, lineWidth, lineColor, lineCap, x: startPosX, y: startPosY, width: endPosX - startPosX, height: endPosY - startPosY };
   }
 }
 

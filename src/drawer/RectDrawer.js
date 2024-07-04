@@ -1,5 +1,5 @@
 const { createCanvas } = require("@napi-rs/canvas");
-const { calculatePosition, roundRect, pixelParser, isOverlapping } = require("./CanvasHelper");
+const { calculatePosition, roundRect, pixelParser } = require("./CanvasHelper");
 const { getCachedImage, cache } = require("./CacheManager");
 
 class RectDrawer {
@@ -29,7 +29,7 @@ class RectDrawer {
    */
   async drawRect(options = {}, lastReference = null) {
     const { x, y, width, height, reference, borderRadius = 0, borderWidth, borderColor, borderGradient, borderStyle, backgroundColor, backgroundImage, backgroundGradient } = pixelParser(options);
-    const { posX, posY, divWidth, divHeight } = calculatePosition({ ctx: this.ctx, x, y, width, height, reference, lastReference, shape: "rectangle" });
+    const { posX, posY, divWidth, divHeight } = calculatePosition({ ctx: this.ctx, shape: "rectangle", x, y, width, height, reference, lastReference });
 
     // Verificar sobreposição
     const cacheKey = JSON.stringify({ width: divWidth, height: divHeight, borderRadius, backgroundColor, backgroundImage, backgroundGradient, borderColor, borderWidth, borderStyle, shape: "rectangle" });
