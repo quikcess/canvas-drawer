@@ -144,14 +144,14 @@ class CanvasDrawer {
 
   /**
    * Retrieves or generates an attachment based on fileName and mimeType.
-   * @param {string} fileName - Name of the attachment file.
    * @param {object} [options] - Options for generating the attachment.
+   * @param {string} [options.fileName] - Name of the attachment file.
    * @param {number} [options.quality] - Quality of the image (0 to 100, applicable for "image/jpeg" and "image/webp").
    * @param {string} [options.mimeType] - MIME type of the attachment (default: "image/jpeg").
    * @returns {Promise<AttachmentBuilder>} Attachment builder instance.
    */
-  async generateAttachment(fileName, options = { mimeType: "image/jpeg", quality: 100 }) {
-    const { mimeType, quality } = options;
+  async generateAttachment(options = { fileName: "file", mimeType: "image/jpeg", quality: 100 }) {
+    const { fileName, mimeType, quality } = options;
     
     if (!isValidMimeType(mimeType)) throw new Error(`Invalid Mime Type: ${mimeType}`);
 
@@ -162,11 +162,14 @@ class CanvasDrawer {
 
   /**
    * Retrieves or generates a buffer based on mimeType.
-   * @param {string} [mimeType] - MIME type of the buffer (default: "image/jpeg").
-   * @param {number} [quality] - Quality of the image (0 to 100, applicable for "image/jpeg" and "image/webp").
+   * @param {object} [options] - Options for create the buffer.
+   * @param {string} [options.mimeType] - MIME type of the buffer (default: "image/jpeg").
+   * @param {number} [options.quality] - Quality of the image (0 to 100, applicable for "image/jpeg" and "image/webp").
    * @returns {Buffer} Buffer of the canvas.
    */
-  getBuffer(mimeType="image/jpeg", quality=100) {
+  getBuffer(options = { mimeType: "image/jpeg", quality: 100 }) {
+    const { mimeType, quality } = options;
+    
     if (!isValidMimeType(mimeType)) throw new Error(`Invalid Mime Type: ${mimeType}`);
 
     const buffer = this.canvas.toBuffer(mimeType, quality);
