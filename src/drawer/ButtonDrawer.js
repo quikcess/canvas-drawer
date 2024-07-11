@@ -1,0 +1,243 @@
+const { createCanvas } = require("@napi-rs/canvas");
+const { getCachedImage } = require("./CacheManager");
+const { parsePadding, parseBorderRadius, roundRect, pixelParser } = require("./CanvasHelper");
+
+/**
+ * Draws a button on a canvas context.
+ * @param {CanvasRenderingContext2D} ctx - The canvas context to draw on.
+ * @param {Object} options - Options for drawing the button.
+ * @param {number|string} options.x - The x-coordinate of the top-left corner.
+ * @param {number|string} options.y - The y-coordinate of the top-left corner.
+ * @param {number|string} options.width - The fixed width of the button.
+ * @param {number|string} options.height - The fixed height of the button.
+ * @param {number|string|Array} [options.padding=5] - The padding around the button.
+ * @param {string} [options.backgroundColor] - The background color of the button.
+ * @param {string} [options.backgroundImage] - The URL or path to the background image.
+ * @param {Array|string|Object} [options.backgroundGradient] - The gradient for the background.
+ * @param {string} [options.borderColor] - The border color of the button.
+ * @param {number} [options.borderWidth=1] - The width of the button's border.
+ * @param {Array|string|Object} [options.borderGradient] - The gradient for the border.
+ * @param {string} [options.borderStyle='solid'] - The style of the border ('solid', 'dashed', 'dotted').
+ * @param {number|string} [options.borderRadius=0] - The radius of the button's corners.
+ * @param {string} [options.text] - The text to display on the button.
+ * @param {string} [options.font='30px sans-serif'] - The font style for the text.
+ * @param {string} [options.color='#000'] - The color of the text.
+ * @param {string} [options.iconURL] - The URL or path to the icon image.
+ * @param {string} [options.iconPosition='left'] - The position of the icon relative to the text ('left' or 'right').
+ * @param {number} [options.iconTextSpacing=10] - The spacing between the icon and the text.
+ * @param {number} [options.iconScale] - The scale factor for the icon size.
+ * @param {object} [options.reference] - Reference object for positioning.
+ * @returns {Promise<object>} Object with dimensions of the drawn button { x, y, width, height }.
+ */
+async function ButtonDrawer(ctx, options = {}) {
+  try {
+    const {
+      x, y, padding = 5, iconURL, iconWidth, iconHeight,
+      backgroundColor, backgroundImage, backgroundGradient,
+      borderColor, borderWidth = 1, borderGradient, borderStyle, borderRadius = 0, reference,
+      text, font = '30px sans-serif', color = '#000', iconPosition = 'left', iconTextSpacing = 10, iconScale,
+      width, height
+    } = pixelParser(options, ['backgroundImage', 'backgroundGradient', 'text', 'font', 'reference', 'borderGradient']);
+
+    const parsedPadding = parsePadding(padding);
+    const parsedBorderRadius = parseBorderRadius(borderRadius);
+
+    // Measure text size
+    let textWidth = 0;
+    let textHeight = 0;
+
+    if (text) {
+      ctx.font = font;
+      textWidth = ctx.measureText(text).width;
+      textHeight = ctx.measureText(text).actualBoundingBoxAscent + ctx.measureText(text).actualBoundingBoxDescent; // Approximate text height
+    }
+
+    // Measure icon size
+    let parsedIconWidth = iconWidth;
+    let parsedIconHeight = iconHeight;
+
+    if (iconScale) {
+      const image = await getCachedImage(iconURL);
+      parsedIconWidth = (iconWidth || image.width) * iconScale;
+      parsedIconHeight = (iconHeight || image.height) * iconScale;
+    }
+
+    // Calculate content dimensions
+    const contentWidth = textWidth + parsedIconWidth + (iconURL && text ? iconTextSpacing : 0);
+    const contentHeight = Math.max(parsedIconHeight, textHeight);
+
+    // Determine button dimensions
+    const buttonWidth = width ? width + parsedPadding.left + parsedPadding.right : contentWidth + parsedPadding.left + parsedPadding.right;
+    const buttonHeight = height ? height + parsedPadding.top + parsedPadding.bottom : contentHeight + parsedPadding.top + parsedPadding.bottom;
+
+    // Create offscreen canvas for combining icon and text
+    const offscreenCanvas = createCanvas(contentWidth, contentHeight);
+    const offscreenCtx = offscreenCanvas.getContext('2d');
+
+    // Draw icon and text on offscreen canvas
+    let textX = iconTextSpacing;
+
+    if (iconPosition === 'left') {
+      if (iconURL) {
+        offscreenCtx.drawImage(await getCachedImage(iconURL), 0, (contentHeight - parsedIconHeight) / 2, parsedIconWidth, parsedIconHeight);
+        textX = parsedIconWidth + iconTextSpacing;
+      }
+      
+      if (text) {
+        offscreenCtx.fillStyle = color;
+        offscreenCtx.font = font;
+        offscreenCtx.textBaseline = 'middle';
+        offscreenCtx.fillText(text, textX, contentHeight / 2);
+      }
+    } else if (iconPosition === 'right') {
+      if (text) {
+        offscreenCtx.fillStyle = color;
+        offscreenCtx.font = font;
+        offscreenCtx.textBaseline = 'middle';
+        textX = iconURL ? offscreenCanvas.width - offscreenCtx.measureText(text).width - (iconURL ? (parsedIconWidth + iconTextSpacing) : 0) : textX;
+        offscreenCtx.fillText(text, textX, contentHeight / 2);
+      }
+
+      if (iconURL) {
+        const iconX = textX + offscreenCtx.measureText(text).width + iconTextSpacing;
+        offscreenCtx.drawImage(await getCachedImage(iconURL), iconX, (contentHeight - parsedIconHeight) / 2, parsedIconWidth, parsedIconHeight);
+      }
+    }
+
+    // Calculate button position
+    let posX = x;
+    let posY = y;
+    
+    const isCenterX = typeof x === 'string' && x.toLowerCase() === 'center';
+    const isCenterY = typeof y === 'string' && y.toLowerCase() === 'center';
+
+    if (isCenterX) posX = (ctx.canvas.width - buttonWidth) / 2;
+    if (isCenterY) posY = (ctx.canvas.height - buttonHeight) / 2;
+
+    if (reference && (isCenterX || isCenterY)) {
+      if (isCenterX) posX = reference.x + ((reference.width || reference.radius || 0) - buttonWidth) / 2;
+      if (isCenterY) posY = reference.y + ((reference.height || reference.radius || 0) - buttonHeight) / 2;
+    }
+ 
+    // Save current context state
+    ctx.save();
+
+    // Draw background image if provided
+    if (backgroundImage) {
+      const image = await getCachedImage(backgroundImage);
+
+      ctx.save();
+      roundRect(ctx, posX, posY, buttonWidth, buttonHeight, parsedBorderRadius);
+      ctx.clip();
+      ctx.drawImage(image, posX, posY, buttonWidth, buttonHeight);
+      ctx.restore();
+    }
+
+    // Draw background color or background gradient if provided
+    if (backgroundColor || backgroundGradient) {
+      if (backgroundGradient) {
+        let gradientColors;
+        let gradientAngle = 0; // Default angle
+
+        if (Array.isArray(backgroundGradient)) {
+          gradientColors = backgroundGradient;
+        } else if (typeof backgroundGradient === 'string') {
+          gradientColors = backgroundGradient.split(' ');
+        } else {
+          const { angle = 0, stops, colors } = backgroundGradient;
+          gradientAngle = angle;
+          if (stops) {
+            gradientColors = stops.map(stop => stop.color);
+          } else if (colors) {
+            gradientColors = Array.isArray(colors) ? colors : colors.split(' ');
+          }
+        }
+
+        const radianAngle = (gradientAngle * Math.PI) / 180;
+        const x0 = posX + (buttonWidth / 2) * Math.cos(radianAngle - Math.PI / 2);
+        const y0 = posY + (buttonHeight / 2) * Math.sin(radianAngle - Math.PI / 2);
+        const x1 = posX + (buttonWidth / 2) * Math.cos(radianAngle + Math.PI / 2);
+        const y1 = posY + (buttonHeight / 2) * Math.sin(radianAngle + Math.PI / 2);
+
+        const gradient = ctx.createLinearGradient(x0, y0, x1, y1);
+
+        gradientColors.forEach((color, index) => {
+          const offset = index / (gradientColors.length - 1);
+          gradient.addColorStop(offset, color);
+        });
+
+        ctx.fillStyle = gradient;
+      } else {
+        ctx.fillStyle = backgroundColor;
+      }
+
+      roundRect(ctx, posX, posY, buttonWidth, buttonHeight, parsedBorderRadius);
+      ctx.fill();
+    }
+
+    // Draw border
+    if (borderWidth > 0 && (borderColor || borderGradient)) {
+      ctx.lineWidth = borderWidth;
+
+      if (borderGradient) {
+        let gradientColors;
+        let gradientAngle = 0; // Default angle
+
+        if (Array.isArray(borderGradient)) {
+          gradientColors = borderGradient;
+        } else if (typeof borderGradient === 'string') {
+          gradientColors = borderGradient.split(' ');
+        } else {
+          const { angle = 0, stops, colors } = borderGradient;
+          gradientAngle = angle;
+          if (stops) {
+            gradientColors = stops.map(stop => stop.color);
+          } else if (colors) {
+            gradientColors = Array.isArray(colors) ? colors : colors.split(' ');
+          }
+        }
+
+        const radianAngle = (gradientAngle * Math.PI) / 180;
+        const x0 = posX + (buttonWidth / 2) * Math.cos(radianAngle - Math.PI / 2);
+        const y0 = posY + (buttonHeight / 2) * Math.sin(radianAngle - Math.PI / 2);
+        const x1 = posX + (buttonWidth / 2) * Math.cos(radianAngle + Math.PI / 2);
+        const y1 = posY + (buttonHeight / 2) * Math.sin(radianAngle + Math.PI / 2);
+
+        const gradient = ctx.createLinearGradient(x0, y0, x1, y1);
+
+        gradientColors.forEach((color, index) => {
+          const offset = index / (gradientColors.length - 1);
+          gradient.addColorStop(offset, color);
+        });
+
+        ctx.strokeStyle = gradient;
+      } else {
+        ctx.strokeStyle = borderColor;
+      }
+
+      if (borderStyle === 'dashed' || borderStyle === 'dotted') {
+        const dashSize = borderStyle === 'dashed' ? 5 : 2;
+        ctx.setLineDash([dashSize, dashSize]);
+      }
+
+      roundRect(ctx, posX, posY, buttonWidth, buttonHeight, parsedBorderRadius);
+      ctx.stroke();
+    }
+
+    // Draw combined icon and text from offscreen canvas to main canvas
+    const offscreenX = posX + (buttonWidth - contentWidth) / 2;
+    const offscreenY = posY + (buttonHeight - contentHeight) / 2;
+
+    ctx.drawImage(offscreenCanvas, offscreenX, offscreenY);
+
+    // Restore context state
+    ctx.restore();
+
+    return { x: posX, y: posY, width: buttonWidth, height: buttonHeight };
+  } catch (error) {
+    console.error("[ERROR] Drawing Button:", error);
+    throw error;
+  }
+}
+
+module.exports = ButtonDrawer;

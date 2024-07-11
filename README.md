@@ -1,11 +1,10 @@
-
 <div align="center">
   <img alt="CanvasDrawer Banner" src="https://i.ibb.co/vxCbchW/Quikcess-Banner1-github.png">
 </div>
 
 <h1 align="center">CanvasDrawer</h1>
 
-<p align="center">Library for drawing shapes on a canvas using Node.js, Discord.js, and Napi Canvas.</p>
+<p align="center">Library to efficiently draw shapes, texts, buttons on a canvas using Node.js.</p>
 
 <div align="center">
   <div style="width: fit-content; display: flex; align-items: flex-start; gap: 4px;">
@@ -37,11 +36,13 @@ Visit our [official API documentation](https://docs.yourproject.com) for more in
 - _Clone the repository from [GitHub](https://github.com/yourusername/canvas-drawer)._
 
 ```js
-const { CanvasDrawer } = require('canvas-drawer');
+const { createCanvas } = require('@napi-rs/canvas');
+const { drawRect, drawCircle } = require("canvas-drawer");
 
-const canvas = new CanvasDrawer(800, 600);
+const canvas = createCanvas(800, 600);
+const ctx = canvas.getContext("2d");
 
-canvas.drawRect({
+await drawRect({
   x: 100,
   y: 100,
   width: 200,
@@ -49,7 +50,7 @@ canvas.drawRect({
   backgroundColor: 'blue'
 });
 
-canvas.drawCircle({
+await drawCircle({
   x: 400,
   y: 300,
   radius: 50,
@@ -58,29 +59,30 @@ canvas.drawCircle({
   borderColor: 'black'
 });
 
-const buffer = canvas.getBuffer(); // Use buffer as needed
+const buffer = canvas.toBuffer("image/png"); // Use buffer as needed
 ```
 
 ### Drawing Shapes
 
-#### `drawRect(options)`
+#### `RectDrawer(options)`
 
-Draws a rectangle on the canvas.
+Draws a rounded rectangle on the canvas.
 
 - **Parameters:**
   - `options`: Object with rectangle options.
-    - `x`: Horizontal position of the rectangle.
-    - `y`: Vertical position of the rectangle.
-    - `width`: Width of the rectangle.
-    - `height`: Height of the rectangle.
-    - `backgroundColor`: Background color of the rectangle.
-    - `backgroundImage`: Background image of the rectangle.
-    - `backgroundGradient`: Background gradient of the rectangle.
-    - `borderColor`: Border color of the rectangle.
-    - `borderGradient`: Border gradient of the rectangle.
-    - `borderWidth`: Border width of the rectangle.
-    - `borderRadius`: Corner radius of the rectangle.
-    - `reference`: Reference for positioning the rectangle relative to another element.
+    - `x`: The x-coordinate of the top-left corner.
+    - `y`: The y-coordinate of the top-left corner.
+    - `width`: The width of the rectangle.
+    - `height`: The height of the rectangle.
+    - `backgroundColor`: The background color of the rectangle.
+    - `backgroundImage`: The URL or path to the background image.
+    - `backgroundGradient`: The gradient for the background.
+    - `borderColor`: The border color of the rectangle.
+    - `borderWidth`: The width of the rectangle's border.
+    - `borderGradient`: The gradient for the border.
+    - `borderStyle`: The style of the border ('solid', 'dashed', 'dotted').
+    - `borderRadius`: The radius of the rectangle's corners.
+    - `reference`: Reference object for positioning.
 
 - **Returns:** Object with dimensions of the drawn rectangle.
 
@@ -90,133 +92,69 @@ Draws a circle on the canvas.
 
 - **Parameters:**
   - `options`: Object with circle options.
-    - `x`: Horizontal position of the circle.
-    - `y`: Vertical position of the circle.
+    - `x`: X-coordinate of the circle's center.
+    - `y`: Y-coordinate of the circle's center.
     - `radius`: Radius of the circle.
     - `backgroundColor`: Background color of the circle.
+    - `backgroundImage`: URL or path to the background image of the circle.
     - `backgroundGradient`: Background gradient of the circle.
-    - `backgroundImage`: Background image of the circle.
-    - `borderColor`: Border color of the circle.
-    - `borderGradient`: Border gradient of the circle.
-    - `borderWidth`: Border width of the circle.
-    - `reference`: Reference for positioning the circle relative to another element.
+    - `borderColor`: Color of the circle's border.
+    - `borderGradient`: Color gradient of the circle's border.
+    - `borderWidth`: Width of the circle's border.
+    - `reference`: Reference object for positioning.
 
 - **Returns:** Object with dimensions of the drawn circle.
 
-#### `drawLine(options)`
-
-Draws a line on the canvas.
-
-- **Parameters:**
-  - `options`: Object with line options.
-    - `startX`: Starting horizontal position of the line.
-    - `startY`: Starting vertical position of the line.
-    - `endX`: Ending horizontal position of the line.
-    - `endY`: Ending vertical position of the line.
-    - `lineWidth`: Width of the line.
-    - `lineColor`: Color of the line.
-    - `lineCap`: Style of the line's end caps (e.g., 'butt', 'round', 'square').
-
-- **Returns:** Object with details of the drawn line.
-
-#### `drawTriangle(options)`
-
-Draws a triangle on the canvas.
-
-- **Parameters:**
-  - `options`: Object with triangle options.
-    - `x`: Horizontal position of the triangle.
-    - `y`: Vertical position of the triangle.
-    - `size`: Size of the triangle.
-    - `backgroundColor`: Background color of the triangle.
-    - `backgroundImage`: Background image of the triangle.
-    - `backgroundGradient`: Background gradient of the triangle.
-    - `borderGradient`: Border gradient of the triangle.
-    - `borderColor`: Border color of the triangle.
-    - `borderWidth`: Border width of the triangle.
-    - `reference`: Reference for positioning the triangle relative to another element.
-
-- **Returns:** Object with dimensions of the drawn triangle.
-
-#### `drawText(text, x, y, options)`
+#### `drawText(options)`
 
 Draws text on the canvas.
 
 - **Parameters:**
-  - `options` (optional): Options for drawing the text.
+  - `options`: Object with text options.
     - `text`: The text to draw.
-    - `x`: The x-coordinate of the text.
-    - `y`: The y-coordinate of the text.
+    - `x`: The x-coordinate of the text or 'center' to center horizontally.
+    - `y`: The y-coordinate of the text or 'center' to center vertically.
     - `font`: Font style for the text (default: '30px sans-serif').
     - `color`: Color of the text (default: '#000000').
     - `align`: Text alignment ('start', 'end', 'left', 'right', 'center'; default: 'start').
     - `baseline`: Text baseline ('top', 'hanging', 'middle', 'alphabetic', 'ideographic', 'bottom'; default: 'alphabetic').
+    - `reference`: Reference object for positioning.
 
-- **Returns:**
-  - Object with properties `x`, `y`, `font`, `color`, `align`, `baseline`, `shape`.
+- **Returns:** Object with the calculated positions and applied styles.
 
-#### Example
+#### `drawButton(options)`
 
-```javascript
-const canvas = new CanvasDrawer(800, 600);
+Draws a button on the canvas.
 
-canvas.drawText({
-  text: 'Hello, CanvasDrawer!',
-  x: 400,
-  y: 300,
-  font: 'bold 36px Arial',
-  color: 'blue',
-  align: 'center',
-  baseline: 'middle'
-});
-```
+- **Parameters:**
+  - `options`: Object with button options.
+    - `x`: The x-coordinate of the top-left corner.
+    - `y`: The y-coordinate of the top-left corner.
+    - `width`: The fixed width of the button.
+    - `height`: The fixed height of the button.
+    - `padding`: The padding around the button (default: 5).
+    - `backgroundColor`: The background color of the button.
+    - `backgroundImage`: The URL or path to the background image.
+    - `backgroundGradient`: The gradient for the background.
+    - `borderColor`: The border color of the button.
+    - `borderWidth`: The width of the button's border (default: 1).
+    - `borderGradient`: The gradient for the border.
+    - `borderStyle`: The style of the border ('solid', 'dashed', 'dotted'; default: 'solid').
+    - `borderRadius`: The radius of the button's corners (default: 0).
+    - `text`: The text to display on the button.
+    - `font`: The font style for the text (default: '30px sans-serif').
+    - `color`: The color of the text (default: '#000').
+    - `iconURL`: The URL or path to the icon image.
+    - `iconPosition`: The position of the icon relative to the text ('left' or 'right'; default: 'left').
+    - `iconTextSpacing`: The spacing between the icon and the text (default: 10).
+    - `iconScale`: The scale factor for the icon size.
+    - `reference`: Reference object for positioning.
+
+- **Returns:** Promise resolving to an object with dimensions of the drawn button.
 
 ### Advanced Usage
 
-#### `generateAttachment(fileName, options)`
-
-Generates a Discord attachment from the canvas.
-
-- **Parameters:**
-  - `fileName`: Name of the attachment file.
-  - `options`: Object with options.
-    - `mimeType`: MIME type of the attachment (default is "image/jpeg").
-    - `quality`: Quality of the image (0 to 100, default is 100).
-
-- **Returns:** Promise resolving to an `AttachmentBuilder` object.
-
-### Working with Buffer
-
-#### `getBuffer(mimeType = "image/jpeg", quality = 100)`
-
-Returns the current canvas image as a buffer.
-
-- **Parameters:**
-  - `mimeType`: MIME type of the buffer (default is "image/jpeg").
-  - `quality`: Quality of the image (0 to 100, default is 100).
-
-- **Returns:**
-  - A buffer containing the image rendered on the canvas.
-
-### Customizing Drawings
-
-#### `setContext(ctx)`
-
-Sets a custom 2D context for the canvas.
-
-- **Parameters:**
-  - `ctx`: New 2D context to be set.
-
-### Cache Management
-
-#### `clearCache(options)`
-
-Clears the cache based on the provided options.
-
-- **Parameters:**
-  - `options`: Options to specify which parts of the cache to clear.
-    - `images`: Whether to clear the image cache (default: true).
-    - `elements`: Whether to clear the elements cache (default: true).
+See below the advanced use of the canvas drawer library.
 
 ### Using Gradient
 
@@ -267,19 +205,21 @@ await canvasDrawer.drawRect({
 });
 ```
 
-### Notes:
+#### Notes:
 
 - The `angle` property defines the direction of the gradient. For example, an angle of 0 degrees will create a gradient from left to right, while an angle of 90 degrees will create a gradient from top to bottom.
 - If no `offset` is specified in `stops`, the colors will be evenly distributed along the gradient.
 
-### Example Code for Drawing a Gradient Rectangle
+#### Example Code for Drawing a Gradient Rectangle
 
 ```js
-const { CanvasDrawer } = require('canvas-drawer');
+const { createCanvas } = require('@napi-rs/canvas');
+const { drawRect } = require("canvas-drawer");
 
-const canvas = new CanvasDrawer(800, 600);
+const canvas = createCanvas(800, 600);
+const ctx = canvas.getContext("2d");
 
-canvas.drawRect({
+await drawRect({
   x: 100,
   y: 100,
   width: 200,
@@ -294,8 +234,40 @@ canvas.drawRect({
   }
 });
 
-const buffer = canvas.getBuffer(); // Use buffer as needed
+const buffer = canvas.toBuffer("image/png"); // Use buffer as needed
 ```
+
+### Example Code for Drawing a Button
+
+```js
+const { createCanvas } = require('@napi-rs/canvas');
+const { drawButton } = require("canvas-drawer");
+
+const canvas = createCanvas(800, 600);
+const ctx = canvas.getContext("2d");
+
+await drawButton({
+  x: 100,
+  y: 200,
+  width: 200,
+  height: 100,
+  backgroundColor: 'blue',
+  text: 'Click Me',
+  color: 'white',
+  font: '20px Arial',
+  borderColor: 'black',
+  borderWidth: 2,
+  borderRadius: 10,
+  iconURL: 'path/to/icon.png',
+  iconPosition: 'left',
+  iconTextSpacing: 10
+});
+
+const buffer = canvas.toBuffer("image/png"); // Use buffer as needed
+```
+
+#### Notes:
+- This code will draw a button with a blue background, white text that says "Click Me," and an icon to the left of the text. The button will have a black border with a width of 2 pixels and rounded corners with a radius of 10 pixels.
 
 ## Contributing
 
