@@ -1,3 +1,6 @@
 module.exports = {
-  CanvasDrawer: require("./drawer/CanvasDrawer"),
+  drawRect: require("./RectDrawer"),
+  drawCircle: require("./CircleDrawer"),
+  drawText: require("./TextDrawer"),
+  drawButton: require("./ButtonDrawer"),
 }
