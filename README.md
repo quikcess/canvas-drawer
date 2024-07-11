@@ -8,10 +8,10 @@
 
 <div align="center">
   <div style="width: fit-content; display: flex; align-items: flex-start; gap: 4px;">
-    <img alt="NPM License" src="https://img.shields.io/npm/l/canvas-drawer">
-    <img alt="NPM Downloads" src="https://img.shields.io/npm/dw/canvas-drawer">
-    <a href="https://npmjs.com/package/canvas-drawer">
-      <img alt="NPM Version" src="https://img.shields.io/npm/v/canvas-drawer">
+    <img alt="NPM License" src="https://img.shields.io/npm/l/@quikcess/canvas-drawer">
+    <img alt="NPM Downloads" src="https://img.shields.io/npm/dw/@quikcess/canvas-drawer">
+    <a href="https://npmjs.com/package/@quikcess/canvas-drawer">
+      <img alt="NPM Version" src="https://img.shields.io/npm/v/@quikcess/canvas-drawer">
     </a>
   </div>
 </div>
@@ -26,14 +26,9 @@ yarn add canvas-drawer
 pnpm add canvas-drawer
 ```
 
-<!-- 
-## Documentation
-
-Visit our [official API documentation](https://docs.yourproject.com) for more information about this library. -->
-
 ## Getting Started
 
-- _Clone the repository from [GitHub](https://github.com/yourusername/canvas-drawer)._
+Take a look at [Changelog](https://github.com/quikcess/canvas-drawer#changelog) for more information about this release.
 
 ```js
 const { createCanvas } = require('@napi-rs/canvas');

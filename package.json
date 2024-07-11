@@ -1,12 +1,15 @@
 {
-  "name": "canvas-drawer",
+  "name": "@quikcess/canvas-drawer",
   "version": "1.1.0",
   "description": "Library to efficiently draw shapes, texts, buttons on a canvas using Node.js.",
-  "main": "src/index.js",
+  "main": "lib/index.js",
   "scripts": {},
-  "keywords": ["canvas", "napi/canvas", "@napi-rs/canvas", "canvas-drawer", "discord.js", "canvas-djs"],
+  "keywords": ["canvas", "napi/canvas", "@napi-rs/canvas", "canvas-drawer", "discord.js", "canvasdrawer"],
   "author": "Eydrenn Araújo",
   "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eydrenn/canvas-drawer#issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/eydrenn/canvas-drawer.git"
