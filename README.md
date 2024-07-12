@@ -19,16 +19,16 @@
 ## Installation
 
 ```bash
-npm install canvas-drawer
+npm install @quikcess/canvas-drawer @napi-rs/canvas
 # or
-yarn add canvas-drawer
+yarn add @quikcess/canvas-drawer @napi-rs/canvas
 # or
-pnpm add canvas-drawer
+pnpm add @quikcess/canvas-drawer @napi-rs/canvas
 ```
 
 ## Getting Started
 
-Take a look at [Changelog](https://github.com/quikcess/canvas-drawer#changelog) for more information about this release.
+Take a look at [Changelog](https://github.com/quikcess/canvas-drawer/blob/main/CHANGELOG.md) for more information about this release.
 
 ```js
 const { createCanvas } = require('@napi-rs/canvas');

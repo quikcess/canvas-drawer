@@ -1,5 +1,47 @@
 # @quikcess/canvas-drawer
 
+### Version 1.1.1
+
+#### **Features:**
+  - 🌐 General: 
+    - **Opacity**: Added support for text and shapes opacity.
+    ```js
+    await drawText(ctx, {
+      x: "center",
+      y: 17,
+      text: 'Hello World',
+      opacity: 0.170
+    });
+
+    await drawRect(ctx, {
+      x: "center",
+      y: "center",
+      width: 50,
+      height: 50,
+      backgroundColor: "white",
+      opacity: 0.02
+    });
+    ```
+
+  - 📝 TextDrawer:
+    - **Segments added**: Build texts with different styles in a single line.
+    ```js
+    await drawText(ctx, {
+      x: "center",
+      y: 17,
+      segments: [
+        { text: 'This ', font: '400 25px Inter', color: '#E8E8E9' },
+        { text: 'sentence has ', font: '700 25px Inter', color: '#E8E8E9' },
+        { text: 'different weights.', font: '400 25px Inter', color: '#E8E8E9' },
+      ]
+    });
+    ```
+
+- **Bug Fixes:**
+  - Fixed the width and height properties of the ButtonDrawer icon, as well as its scale.
+  - Fixed problem with automatic height and width on ButtonDrawer.
+  - Fixed problem with text-only and icon-only buttons on ButtonDrawer.
+
 ### Version 1.1.0
 
 - **Feature Enhancement:**
