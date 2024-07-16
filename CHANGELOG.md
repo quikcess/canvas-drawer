@@ -37,6 +37,17 @@
     });
     ```
 
+  - 🔘 ButtonDrawer:
+    - **Align added:** build buttons and make their general alignment using the `align` property.
+    ```js
+    await drawButton(ctx, {
+      x: "center",
+      y: 17,
+      height: 20,
+      align: "right", // default: 'left'
+    });
+    ```
+
 - **Bug Fixes:**
   - Fixed state and alignment issues in the drawText function.
   - Fixed the width and height properties of the ButtonDrawer icon, as well as its scale.
