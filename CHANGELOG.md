@@ -38,7 +38,9 @@
     ```
 
 - **Bug Fixes:**
+  - Fixed state and alignment issues in the drawText function.
   - Fixed the width and height properties of the ButtonDrawer icon, as well as its scale.
+  - Fixed text centering issue in ButtonDrawer.
   - Fixed problem with automatic height and width on ButtonDrawer.
   - Fixed problem with text-only and icon-only buttons on ButtonDrawer.
 
