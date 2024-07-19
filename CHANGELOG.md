@@ -48,6 +48,17 @@
     });
     ```
 
+  - 🖼 Image:
+    - **Tranforms:** resize images, change colors, change their opacity, through Image.
+    ```js
+    const imgYellow = await Image({
+      imgUrl: "src/assets/images/start.png",
+      color: "#F0B232",
+    });
+
+    const imageUrl = imgYellow.url;
+    ```
+
 - **Bug Fixes:**
   - Fixed bug in CircleDrawer X and Y positioning.
   - Fixed state and alignment issues in the drawText function.
