@@ -49,6 +49,7 @@
     ```
 
 - **Bug Fixes:**
+  - Fixed bug in CircleDrawer X and Y positioning.
   - Fixed state and alignment issues in the drawText function.
   - Fixed the width and height properties of the ButtonDrawer icon, as well as its scale.
   - Fixed text centering issue in ButtonDrawer.
